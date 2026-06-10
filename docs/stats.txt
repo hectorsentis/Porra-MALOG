@@ -1,0 +1,539 @@
+RESUMEN DE ESTADÍSTICAS, RANKINGS, GRÁFICOS Y FRASES DE SALSEO AÑADIDAS AL EXCEL
+Porra Mundial 2026
+
+======================================================================
+1. HOJA 09_CLASIFICACION_GENERAL
+======================================================================
+
+Función:
+Hoja motor de clasificación general. Calcula puntos actuales, puntos por fase, ranking general y comparativa contra una fecha seleccionada.
+
+Estadísticas/cálculos añadidos:
+- Points_Matches: puntos por partidos.
+- Points_Groups: puntos por clasificación de grupos.
+- Points_Eliminatorias: puntos por eliminatorias.
+- Points_Bonus: puntos por bonus.
+- Points_Total: suma total.
+- Exact_Scores: resultados exactos.
+- Correct_Diff: diferencias de goles acertadas.
+- Correct_Signs: signos 1X2 acertados.
+- Correct_Group_Qualified: equipos clasificados de grupos acertados.
+- Correct_Group_Positions: posiciones exactas de grupo.
+- Correct_Cruces: cruces exactos.
+- Correct_Qualified 1/8.
+- Correct_Qualified 1/4.
+- Correct_Qualified 1/2.
+- Correct_Qualified Final.
+- Correct Champion.
+- N_Bonus.
+- Total_Aciertos.
+- Pos: ranking general.
+- Points_Matches_Fecha.
+- Points_Groups_Fecha.
+- Points_KO_Fecha.
+- Points_Bonus_Fecha.
+- Points_Total_Fecha.
+- Pos_Fecha.
+- Delta_Pos.
+- Delta_Points.
+
+Criterio de ranking general:
+1. Más Points_Total.
+2. Más Exact_Scores.
+3. Más Correct_Cruces.
+4. Más Correct_Group_Positions.
+5. Más Correct_Group_Qualified.
+
+Salseo añadido:
+- Comparativa con fecha seleccionada.
+- Delta_Pos para ver si un jugador sube o baja.
+- Flechas visuales en la hoja de podio, alimentadas desde Delta_Pos.
+
+Notas:
+- Correct_Group_Qualified debe contar equipos apostados realmente como clasificados a 1/16, no simplemente equipos reales clasificados.
+- La lógica correcta es comprobar si el equipo aparece en los cruces R32 del participante y si realmente se clasificó.
+
+
+======================================================================
+2. HOJA 10_PODIO
+======================================================================
+
+Función:
+Hoja visual principal para enseñar/capturar/enviar. Consume la tabla de 09_CLASIFICACION_GENERAL.
+
+Tablas añadidas:
+
+A) Tabla principal de podio:
+- Delta_Pos.
+- Pos.
+- Alias.
+- Departamento.
+- Rango.
+- Points_Matches.
+- Points_Groups.
+- Points_Eliminatorias.
+- Points_Bonus.
+- Points_Total.
+
+B) Tabla de aciertos:
+- Delta_Pos.
+- Pos.
+- Alias.
+- Departamento.
+- Rango.
+- Exact_Scores.
+- Correct_Diff.
+- Correct_Signs.
+- Correct_Group_Qualified.
+- Correct_Group_Positions.
+- Correct_Cruces.
+- Correct_Qualified 1/8.
+- Correct_Qualified 1/4.
+- Correct_Qualified 1/2.
+- Correct_Qualified Final.
+- Correct Champion.
+- Total ESP bonus.
+- N_Bonus.
+- Total_Aciertos.
+
+C) Tabla de bonus:
+- Bonus_Campeon.
+- Bonus_Subcampeon.
+- Bonus_Semifinalistas.
+- Bonus_Goleador.
+- Bonus_Revelacion.
+- Bonus Decepcion.
+- Bonus_Mas_Goleadora.
+- Bonus_Menos_Goleadora.
+- Bonus_Mas_Goleada.
+- Bonus_Menos_Goleada.
+- Bonus_Goles.
+- N_Bonus.
+- Points_Bonus.
+
+Formato visual:
+- Delta_Pos como número con formato personalizado: [Green]▲ 0;[Red]▼ 0;[Gray]=
+- Top 3 destacable.
+- Ranking ordenado automáticamente por Pos.
+- Hoja pensada para pantallazo/correo.
+
+
+======================================================================
+3. HOJA 11_PREDICCIONES_DIA
+======================================================================
+
+Función:
+Ver apuestas por fecha y partido. Permite analizar cómo apostó la gente en un partido concreto o en todos los partidos de un día.
+
+Selectores:
+- Selector de fecha.
+- Selector de partido.
+- Opción TODOS para incluir todos los partidos de la fecha.
+
+Tabla de predicciones:
+Muestra:
+- Alias.
+- Departamento.
+- Participant_ID.
+- Match_ID.
+- Fase.
+- Equipo local apostado.
+- Equipo visitante apostado.
+- Goles apostados local.
+- Goles apostados visitante.
+- Equipo local real.
+- Equipo visitante real.
+- Goles reales local.
+- Goles reales visitante.
+- Exact_OK.
+- Diff_OK.
+- Sign_OK.
+- Qualified_OK.
+- Cruce_Exacto_OK.
+- Points_Total.
+
+Estadísticas añadidas:
+- Distribución 1-X-2 de las apuestas: local, empate, visitante.
+- Resultado más apostado.
+- Número de jugadores que apostaron ese resultado.
+- Porcentaje de jugadores que apostaron ese resultado.
+- Partido más rentable del día.
+- Puntos repartidos en el partido más rentable.
+- Partido masacre.
+- Puntos repartidos en el partido masacre.
+- Jugador del partido/día.
+- Nostradamus del partido/día.
+- Número de jugadores con 0 puntos.
+- Total de puntos repartidos.
+
+Tarjetas de salseo:
+- Resultado más apostado.
+- Partido más rentable.
+- Partido masacre.
+- Jugador del día.
+- Nostradamus.
+- Carnicería: jugadores a 0 puntos.
+- Puntos repartidos.
+
+Gráficos:
+1. Anillo: distribución 1-X-2.
+2. Barras horizontales: top puntos por jugador.
+3. Columnas: tipos de acierto: exacto, diferencia, signo, sin puntos.
+
+
+======================================================================
+4. HOJA 12_RANKINGS_TEMPORALES
+======================================================================
+
+Función:
+Agrupar rankings diarios/semanales y piques colectivos por Departamento y Rango.
+
+Selectores:
+- Fecha día.
+- Fecha inicio rango.
+- Fecha fin rango.
+
+Ranking diario:
+- Pos Día.
+- Alias.
+- Departamento.
+- Rango.
+- Puntos Día.
+- Exactos Día.
+- Signos Día.
+- Cruces Día.
+
+Ranking semanal/rango:
+- Pos Rango.
+- Alias.
+- Departamento.
+- Rango.
+- Puntos Rango.
+- Exactos Rango.
+- Signos Rango.
+- Cruces Rango.
+
+Pique por Departamento:
+- Pos.
+- Departamento.
+- Participantes.
+- Puntos Rango.
+- Media por jugador.
+
+Criterio recomendado:
+Ordenar por media por jugador, no por puntos totales, para que los departamentos con más gente no ganen por volumen.
+
+Pique por Rango:
+- Pos.
+- Rango.
+- Participantes.
+- Puntos Rango.
+- Media por jugador.
+
+Tarjetas:
+- Ganador del día.
+- Puntos del ganador del día.
+- Ganador del rango.
+- Puntos del ganador del rango.
+- Departamento más fino.
+- Media del departamento líder.
+- Rango más fino.
+- Media del rango líder.
+
+Gráficos:
+1. Barras horizontales: top diario.
+2. Barras horizontales: top semanal/rango.
+3. Columnas: media de puntos por departamento.
+4. Columnas: media de puntos por rango.
+
+
+======================================================================
+5. HOJA 13_STATS_SALSEO / 14_STATS
+======================================================================
+
+Función:
+Estadísticas generales, premios especiales y frases de salseo.
+
+Premios especiales:
+- LIDER: primero de la clasificación general.
+- FAROLILLO: último clasificado.
+- COHETE: mayor subida de posiciones.
+- HUNDIDO: mayor bajada de posiciones.
+- NOSTRADAMUS: más resultados exactos.
+- REY_SIGNO: más signos acertados.
+- CIRUJANO_GRUPOS: más posiciones exactas de grupo.
+- REY_CRUCES: más cruces exactos.
+- KILLER_ELIMINATORIAS: más puntos en KO.
+- BONUSMAN: más puntos de bonus.
+- FLORERO: más puntos con pocos exactos.
+- GAFE: más partidos con 0 puntos.
+- AMARRATEGUI: más empates apostados.
+- PATRIOTA: más puntos/apuestas relacionadas con España.
+- PATRIOTA_ANTI_MAR: más apuestas contra Marruecos.
+- REGULAR: más partidos puntuando.
+- DEPARTAMENTO: departamento líder por media.
+- RANGO: rango líder por media.
+
+Tarjetas globales:
+- Total participantes.
+- Puntos repartidos.
+- Media de puntos.
+- Líder actual.
+- Farolillo rojo.
+- Departamento líder.
+- Rango líder.
+
+Gráfico:
+- Columnas agrupadas: puntos repartidos por fase: partidos, grupos, eliminatorias, bonus.
+
+
+======================================================================
+6. ESTADÍSTICAS SOBRE BONUS BETS
+======================================================================
+
+Fuente:
+tbl_bets_bonus.
+
+Objetivo:
+Analizar lo que la gente cree antes de que se juegue el torneo.
+
+Estadísticas:
+- Campeón más apostado.
+- Subcampeón más apostado.
+- Semifinalistas más apostados.
+- Equipo revelación más apostado.
+- Equipo decepción más apostado.
+- Selección más goleadora más apostada.
+- Selección menos goleadora más apostada.
+- Selección más goleada más apostada.
+- Selección menos goleada más apostada.
+- Total de goles apostado: media, mínimo, máximo, más repetido, dispersión.
+
+Rankings de salseo:
+- Hype Score:
+  - Campeón x3.
+  - Subcampeón x2.
+  - Semifinalista x1.
+- Índice de desconfianza:
+  - Veces como decepción.
+  - Derrotas apostadas.
+- España vs Marruecos:
+  - Campeón.
+  - Subcampeón.
+  - Semis.
+  - Revelación.
+  - Decepción.
+  - Victorias apostadas.
+  - Empates apostados.
+  - Derrotas apostadas.
+  - Goles a favor apostados.
+  - Goles en contra apostados.
+  - Saldo emocional.
+
+Gráficos recomendados:
+- Barras horizontales: Hype Score por selección.
+- Barras horizontales: Índice de desconfianza por selección.
+- Columnas agrupadas: España vs Marruecos.
+
+
+======================================================================
+7. ESTADÍSTICAS SOBRE BETS MATCHES
+======================================================================
+
+Fuente:
+tbl_bets_matches.
+
+Objetivo:
+Analizar cómo apuesta la gente partido a partido, no cómo puntúa.
+
+Estadísticas:
+- Tendencia general 1-X-2: local, empate, visitante.
+- Resultado más apostado global.
+- Top resultados apostados.
+- Media de goles apostados: goles local, goles visitante, goles totales.
+- Mayor goleada apostada.
+- Jugadores más resultadistas.
+- Jugadores más amarrategui.
+- Equipos más confiados: victorias apostadas.
+- Equipos más despreciados: derrotas apostadas.
+- Equipo más goleador apostado.
+- Equipo más goleado apostado.
+- Saldo emocional por equipo: victorias apostadas - derrotas apostadas.
+
+Gráficos recomendados:
+- Anillo: distribución 1-X-2 global.
+- Barras horizontales: top resultados apostados.
+- Barras horizontales: equipos más confiados.
+- Barras horizontales: equipos más despreciados.
+- Barras horizontales: jugadores más resultadistas.
+- Barras horizontales: jugadores más amarrategui.
+
+
+======================================================================
+8. ESTADÍSTICAS SOBRE BETS GROUP POSITIONS
+======================================================================
+
+Fuente:
+tbl_bets_group_positions.
+
+Objetivo:
+Analizar cómo ve la gente la clasificación de grupos.
+
+Estadísticas:
+- Equipos más apostados como primeros de grupo.
+- Equipos más apostados como segundos de grupo.
+- Equipos más apostados como terceros de grupo.
+- Equipos más apostados como últimos de grupo.
+- Posición media apostada por equipo.
+- Veces apostado 1º.
+- Veces apostado 2º.
+- Veces apostado 3º.
+- Veces apostado 4º.
+- Comparativa España vs Marruecos:
+  - posición media apostada.
+  - veces 1º.
+  - veces último.
+  - confianza relativa.
+
+Gráficos recomendados:
+- Barras horizontales: favoritos de grupo.
+- Barras horizontales: equipos más hundidos en grupos.
+
+
+======================================================================
+9. FRASES DE SALSEO
+======================================================================
+
+Tabla base:
+tbl_frases_salseo.
+
+Estructura:
+Categoria | Frase
+
+Marcadores usados:
+- {NOMBRE}
+- {VALOR}
+
+Categorías:
+- LIDER
+- FAROLILLO
+- COHETE
+- HUNDIDO
+- NOSTRADAMUS
+- GAFE
+- AMARRATEGUI
+- REGULAR
+- FLORERO
+- PATRIOTA
+- PATRIOTA_ANTI_MAR
+- DEPARTAMENTO
+- RANGO
+- REY_SIGNO
+- CIRUJANO_GRUPOS
+- REY_CRUCES
+- KILLER_ELIMINATORIAS
+- BONUSMAN
+
+Funcionamiento:
+1. La tabla de stats calcula Categoria, Ganador y Valor.
+2. La fórmula de Frase_Final filtra tbl_frases_salseo por Categoria.
+3. Elige una frase aleatoria.
+4. Sustituye {NOMBRE} y {VALOR}.
+
+Ejemplo conceptual:
+=LET(
+cat,[@Categoria],
+nom,[@Ganador],
+val,[@Valor],
+frases,FILTER(tbl_frases_salseo[Frase],tbl_frases_salseo[Categoria]=cat),
+plantilla,INDEX(frases,RANDBETWEEN(1,ROWS(frases))),
+SUBSTITUTE(SUBSTITUTE(plantilla,"{NOMBRE}",nom),"{VALOR}",val)
+)
+
+Uso:
+- Copiar/pegar valores antes de enviar el correo para que no cambien las frases al recalcular.
+
+
+======================================================================
+10. FRASES ESPECÍFICAS AÑADIDAS / RECOMENDADAS
+======================================================================
+
+Tipos de frases:
+- Líder actual.
+- Farolillo rojo.
+- Cohete.
+- Hundido.
+- Nostradamus.
+- Gafe.
+- Amarrategui.
+- Regular.
+- Florero.
+- Patriota.
+- Patriota anti-Marruecos.
+- Departamento líder.
+- Rango líder.
+- Killer eliminatorias.
+- Bonusman.
+- Equipo más hypeado.
+- Equipo más despreciado.
+- España vs Marruecos.
+- Resultado más apostado.
+- Partido masacre.
+
+Ejemplos:
+- 🚀 {NOMBRE} sube {VALOR} puestos. Hoy entra en la oficina con gafas de sol.
+- 🪦 {NOMBRE} acumula {VALOR} partidos con 0 puntos. Fallar también requiere constancia.
+- 🇪🇸 {NOMBRE} suma {VALOR} puntos en partidos de España. Patriotismo rentable.
+- {NOMBRE} ha apostado {VALOR} veces contra Marruecos. Patriotismo indirecto, pero intenso.
+- 🏢 {NOMBRE} lidera por departamentos con media de {VALOR}. El resto puede ir tomando notas.
+
+
+======================================================================
+11. GRÁFICOS FINALES POR HOJA
+======================================================================
+
+10_PODIO:
+- Sin gráficos obligatorios.
+- Ranking visual para captura.
+
+11_PREDICCIONES_DIA:
+- Anillo 1-X-2.
+- Barras top puntos por jugador.
+- Columnas tipos de acierto.
+
+12_RANKINGS_TEMPORALES:
+- Barras top diario.
+- Barras top rango.
+- Columnas por departamento.
+- Columnas por rango.
+
+13_STATS_SALSEO / 14_STATS:
+- Columnas puntos por fase.
+- Barras hype por selección.
+- Barras desconfianza por selección.
+- Barras España vs Marruecos.
+- Barras favoritos de grupo.
+- Barras equipos más hundidos en grupos.
+
+
+======================================================================
+12. PENDIENTE / OPCIONAL
+======================================================================
+
+- Normalizar máximo goleador al final.
+- Completar plantillas pendientes.
+- Decidir si el bonus de total de goles mantiene tramos amplios o premia al más cercano:
+  - Mejor aproximación: 5 puntos.
+  - Dentro de +10 goles respecto al mejor: 3 puntos.
+  - Dentro de +20 goles respecto al mejor: 1 punto.
+- Terminar rankings visuales de apuestas bonus.
+- Añadir frases específicas para:
+  - España vs Marruecos.
+  - Equipo más hypeado.
+  - Equipo más despreciado.
+  - Resultado más apostado.
+  - Partido masacre.
+
+======================================================================
+FIN DEL RESUMEN
+======================================================================

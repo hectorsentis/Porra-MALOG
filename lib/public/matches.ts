@@ -16,6 +16,15 @@ function dayRange(value?: string) {
   return Number.isNaN(start.getTime()) ? null : { gte: start, lte: end };
 }
 
+function isHiddenR32(match: { fase: string | null; homeTeamId?: string | null; awayTeamId?: string | null; homeTeamIdManual?: string | null; awayTeamIdManual?: string | null; homeTeam?: string | null; awayTeam?: string | null }) {
+  const fase = (match.fase ?? "").toLocaleUpperCase("es-ES");
+  const isR32 = fase.includes("R32") || fase.includes("1/16");
+  if (!isR32) return false;
+  const homeResolved = Boolean(match.homeTeamId || match.homeTeamIdManual || match.homeTeam);
+  const awayResolved = Boolean(match.awayTeamId || match.awayTeamIdManual || match.awayTeam);
+  return !(homeResolved && awayResolved);
+}
+
 function statusLabel(status: string) {
   if (status === "OFFICIAL") return "Oficial";
   if (status === "DRAFT") return "Borrador";
@@ -26,17 +35,17 @@ function statusLabel(status: string) {
 export async function getMatchFilterOptions() {
   noStore();
   const [matches, teams] = await Promise.all([
-    prisma.match.findMany({ select: { fase: true, grupo: true, jornadaId: true, status: true, fecha: true }, orderBy: [{ fase: "asc" }, { jornadaId: "asc" }] }),
+    prisma.match.findMany({ select: { fase: true, grupo: true, jornadaId: true, status: true, fecha: true, homeTeamId: true, awayTeamId: true, homeTeamIdManual: true, awayTeamIdManual: true, homeTeam: true, awayTeam: true }, orderBy: [{ fase: "asc" }, { jornadaId: "asc" }] }),
     prisma.team.findMany({ select: { seleccion: true }, orderBy: { seleccion: "asc" } })
   ]);
   const unique = (values: Array<string | null | undefined>) => [...new Set(values.filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "es-ES"));
   return {
-    fase: unique(matches.map((match) => match.fase)),
-    grupo: unique(matches.map((match) => match.grupo)),
-    jornada: unique(matches.map((match) => match.jornadaId)),
+    fase: unique(matches.filter((match) => !isHiddenR32(match)).map((match) => match.fase)),
+    grupo: unique(matches.filter((match) => !isHiddenR32(match)).map((match) => match.grupo)),
+    jornada: unique(matches.filter((match) => !isHiddenR32(match)).map((match) => match.jornadaId)),
     equipo: unique(teams.map((team) => team.seleccion)),
-    estado: unique(matches.map((match) => match.status)),
-    fecha: unique(matches.map((match) => match.fecha?.toISOString().slice(0, 10)))
+    estado: unique(matches.filter((match) => !isHiddenR32(match)).map((match) => match.status)),
+    fecha: unique(matches.filter((match) => !isHiddenR32(match)).map((match) => match.fecha?.toISOString().slice(0, 10)))
   };
 }
 
@@ -60,6 +69,7 @@ export async function getPublicMatches(filters: PublicFilters = {}) {
   });
 
   return matches
+    .filter((match) => !isHiddenR32(match))
     .filter((match) =>
       !filters.equipo ||
       includes(match.homeTeam, filters.equipo) ||
@@ -109,7 +119,7 @@ export async function getPublicMatchDetail(matchId: string) {
       scoring: { select: { participantId: true, exactOk: true, diffOk: true, signOk: true, qualifiedOk: true, pointsTotal: true } }
     }
   });
-  if (!match) return null;
+  if (!match || isHiddenR32(match)) return null;
   const scoreByParticipant = new Map(match.scoring.map((score) => [score.participantId, score]));
   const prediction = summarizePredictionDistribution(match.bets);
   return {
@@ -150,3 +160,4 @@ export async function getPublicMatchDetail(matchId: string) {
     })
   };
 }
+

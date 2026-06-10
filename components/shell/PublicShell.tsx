@@ -1,5 +1,6 @@
-﻿import Link from "next/link";
-import { BarChart3, CalendarClock, Gauge, Shield, Trophy, Users } from "lucide-react";
+﻿import Image from "next/image";
+import Link from "next/link";
+import { BarChart3, CalendarClock, Gauge, Trophy, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const nav = [
@@ -22,7 +23,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-air-dark text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/" className="flex min-w-0 items-center gap-3">
-            <Shield className="h-8 w-8 shrink-0 text-air-gold" aria-hidden />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white p-1 shadow-sm"><Image src="/assets/Rokiski azul.svg" alt="Logo PORRA MUNDIAL 2026 MALOG" width={32} height={32} className="h-full w-full object-contain" priority /></span>
             <div className="min-w-0">
               <p className="truncate text-base font-bold">PORRA MUNDIAL 2026 MALOG</p>
               <p className="text-xs text-blue-100">Ejercito del Aire - seguimiento oficial</p>
@@ -59,3 +60,5 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+

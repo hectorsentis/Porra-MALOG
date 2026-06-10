@@ -1,3 +1,4 @@
+﻿import Image from "next/image";
 import Link from "next/link";
 import { logoutAction } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-air-page">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/admin" className="font-bold text-primary">Admin PORRA MALOG</Link>
+          <Link href="/admin" className="flex items-center gap-2 font-bold text-primary"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white p-1 shadow-sm"><Image src="/assets/Rokiski azul.svg" alt="Logo PORRA MUNDIAL 2026 MALOG" width={28} height={28} className="h-full w-full object-contain" /></span><span>Admin PORRA MALOG</span></Link>
           <form action={logoutAction}><Button variant="secondary">Salir</Button></form>
         </div>
       </header>
@@ -33,3 +34,5 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+
