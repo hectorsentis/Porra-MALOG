@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
@@ -12,7 +12,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "import:excel": "tsx scripts/import-excel.ts",
-    "import:excel:dry-run": "tsx scripts/import-excel.ts --dry-run"
+    "import:excel:dry-run": "tsx scripts/import-excel.ts --dry-run",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
