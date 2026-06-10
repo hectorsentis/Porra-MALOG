@@ -30,7 +30,7 @@ export async function getPublicDashboard(filters: PublicFilters = {}): Promise<P
   noStore();
   try {
     const [classification, participantsCount, computedMatches] = await Promise.all([
-      prisma.classification.findMany({
+      prisma.generalRanking.findMany({
         orderBy: { pos: "asc" },
         include: { participant: { select: { slug: true } } },
         take: 50
@@ -93,7 +93,7 @@ export async function getPublicParticipant(slug: string): Promise<PublicParticip
       select: {
         slug: true,
         matchBets: { select: { id: true } },
-        classification: {
+        generalRanking: {
           select: {
             pos: true,
             participantId: true,
@@ -113,12 +113,12 @@ export async function getPublicParticipant(slug: string): Promise<PublicParticip
         }
       }
     });
-    if (!participant?.classification) return null;
+    if (!participant?.generalRanking) return null;
     return {
-      ...toPublicClassificationRow({ ...participant.classification, participant }),
+      ...toPublicClassificationRow({ ...participant.generalRanking, participant }),
       betsCount: participant.matchBets.length,
-      exactScores: participant.classification.exactScores,
-      correctSigns: participant.classification.correctSigns
+      exactScores: participant.generalRanking.exactScores,
+      correctSigns: participant.generalRanking.correctSigns
     };
   } catch {
     return null;

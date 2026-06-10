@@ -17,8 +17,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <CardHeader><CardTitle>Admin PORRA MALOG</CardTitle></CardHeader>
           <CardContent>
             <form action={loginAction} className="grid gap-3">
-              <input className="h-10 rounded-md border border-slate-200 px-3" name="username" placeholder="Usuario" autoComplete="username" />
-              <input className="h-10 rounded-md border border-slate-200 px-3" name="password" placeholder="Password" type="password" autoComplete="current-password" />
+              <label className="grid gap-1 text-sm font-medium">
+                Usuario
+                <input className="h-10 rounded-md border border-slate-200 px-3" name="username" autoComplete="username" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium">
+                Password
+                <input className="h-10 rounded-md border border-slate-200 px-3" name="password" type="password" autoComplete="current-password" />
+              </label>
               {params.error ? <p className="text-sm text-air-down">Credenciales no validas.</p> : null}
               <Button>Entrar</Button>
             </form>

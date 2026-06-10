@@ -18,7 +18,7 @@ export default async function ClasificacionPage({
   const rows = await getPublicClassification(filters);
   return (
     <PublicShell>
-      <PageTitle title="Clasificacion" subtitle="Tabla publica sin email, nombre completo, PAY ni estados administrativos." />
+      <PageTitle title="Clasificacion" subtitle="Ranking actual con puntos por categoria y movimientos de la jornada." />
       <PublicFiltersForm filters={filters} />
       <FilterChips filters={filters} basePath="/clasificacion" />
       <Card>

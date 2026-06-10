@@ -450,7 +450,7 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       await tx.scoringMatch.deleteMany();
       await tx.scoringGroup.deleteMany();
       await tx.scoringBonus.deleteMany();
-      await tx.classification.deleteMany();
+      await tx.generalRanking.deleteMany();
       await tx.betMatch.deleteMany();
       await tx.betGroupPosition.deleteMany();
       await tx.betBonus.deleteMany();
@@ -525,7 +525,7 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       if (groupBets.length > 0) await tx.betGroupPosition.createMany({ data: groupBets, skipDuplicates: true });
       if (bonusBets.length > 0) await tx.betBonus.createMany({ data: bonusBets, skipDuplicates: true });
       if (parsed.classifications.length > 0) {
-        await tx.classification.createMany({ data: parsed.classifications, skipDuplicates: true });
+        await tx.generalRanking.createMany({ data: parsed.classifications, skipDuplicates: true });
         await tx.rankingSnapshot.updateMany({ where: { isLatest: true }, data: { isLatest: false } });
         const snapshot = await tx.rankingSnapshot.create({
           data: {

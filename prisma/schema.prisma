@@ -46,7 +46,11 @@ model Participant {
   groupBets      BetGroupPosition[]
   bonusBet       BetBonus?
   scoringMatches ScoringMatch[]
-  classification Classification?
+  scoringGroups  ScoringGroup[]
+  scoringBonus   ScoringBonus?
+  generalRanking GeneralRanking?
+  snapshotRows   RankingSnapshotRow[]
+  scoreSnapshots ParticipantScoreSnapshot[]
 
   @@map("tbl_participantes")
 }
@@ -102,8 +106,10 @@ model Match {
 
   bets              BetMatch[]
   scoring           ScoringMatch[]
+  results           MatchResult[]
   resultEvents      MatchResultEvent[]
   recalculationRuns RecalculationRun[]
+  rankingSnapshots  RankingSnapshot[]
 
   @@map("tbl_matches")
 }
@@ -127,6 +133,7 @@ model BetMatch {
   participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
   match       Match       @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
 
+  @@unique([participantId, matchId])
   @@index([participantId])
   @@index([matchId])
   @@map("tbl_bets_matches")
@@ -199,6 +206,7 @@ model ScoringMatch {
   match       Match       @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
   participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
 
+  @@unique([participantId, matchId])
   @@index([participantId])
   @@index([matchId])
   @@map("tbl_scoring_matches")
@@ -221,6 +229,8 @@ model ScoringGroup {
   pointsPosition  Int      @default(0) @map("Points_Position")
   pointsTotal     Int      @default(0) @map("Points_Total")
   date            DateTime @default(now()) @map("Date")
+
+  participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
 
   @@index([participantId])
   @@map("tbl_scoring_groups")
@@ -245,10 +255,12 @@ model ScoringBonus {
   totalGolesTorneoOk        Boolean   @default(false) @map("Total_Goles_Torneo_OK")
   pointsTotal               Int       @default(0) @map("Points_Total")
 
+  participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
+
   @@map("tbl_scoring_bonus")
 }
 
-model Classification {
+model GeneralRanking {
   id                    String   @id @default(cuid())
   pos                   Int      @map("Pos")
   participantId         String   @unique @map("Participant_ID")
@@ -288,18 +300,25 @@ model GameRule {
 }
 
 model RankingSnapshot {
-  id          String                     @id @default(cuid())
-  label       String
-  createdAt   DateTime                   @default(now())
-  isPublished Boolean                    @default(true)
-  isLatest    Boolean                    @default(false)
-  source      String
-  eventLabel  String?
-  matchId     String?
-  phase       String?
-  matchday    String?
-  rows        RankingSnapshotRow[]
-  scoreRows   ParticipantScoreSnapshot[]
+  id                 String                     @id @default(cuid())
+  label              String
+  createdAt          DateTime                   @default(now())
+  isPublished        Boolean                    @default(true)
+  isLatest           Boolean                    @default(false)
+  source             String
+  eventLabel         String?
+  matchId            String?
+  phase              String?
+  matchday           String?
+  recalculationRunId String?
+  rows               RankingSnapshotRow[]
+  scoreRows          ParticipantScoreSnapshot[]
+
+  match            Match?            @relation(fields: [matchId], references: [matchId], onDelete: SetNull)
+  recalculationRun RecalculationRun? @relation(fields: [recalculationRunId], references: [id], onDelete: SetNull)
+
+  @@index([matchId, createdAt])
+  @@index([recalculationRunId])
 }
 
 model RankingSnapshotRow {
@@ -325,8 +344,10 @@ model RankingSnapshotRow {
   matchId             String?
   createdAt           DateTime @default(now())
 
-  snapshot RankingSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  snapshot    RankingSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  participant Participant     @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
 
+  @@unique([snapshotId, participantId])
   @@index([snapshotId, pos])
   @@index([participantId, createdAt])
 }
@@ -354,8 +375,10 @@ model ParticipantScoreSnapshot {
   matchId             String?
   createdAt           DateTime @default(now())
 
-  snapshot RankingSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  snapshot    RankingSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  participant Participant     @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
 
+  @@unique([snapshotId, participantId])
   @@index([participantId, createdAt])
   @@index([snapshotId, pos])
 }
@@ -397,7 +420,30 @@ model RecalculationRun {
   affectedParticipants Int       @default(0)
   message              String?
 
-  match Match? @relation(fields: [matchId], references: [matchId], onDelete: SetNull)
+  match     Match?            @relation(fields: [matchId], references: [matchId], onDelete: SetNull)
+  snapshots RankingSnapshot[]
+}
+
+model MatchResult {
+  id              String      @id @default(cuid())
+  matchId         String      @map("Match_ID")
+  status          MatchStatus @default(PENDING)
+  homeGoals       Int?
+  awayGoals       Int?
+  homePens        Int?
+  awayPens        Int?
+  qualifiedTeamId String?
+  isActive        Boolean     @default(false)
+  isOfficial      Boolean     @default(false)
+  source          String      @default("admin")
+  createdBy       String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  match Match @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
+
+  @@index([matchId, status, isActive])
+  @@index([matchId, createdAt])
 }
 
 model MatchResultEvent {

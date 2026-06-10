@@ -25,7 +25,7 @@ function includes(value: string | null | undefined, filter: string | undefined) 
 
 export async function getAdvancedStatistics(filters: PublicFilters) {
   const [classificationRows, snapshots, betBonusRows, scoringMatches, boteConfig] = await Promise.all([
-    prisma.classification.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { slug: true } } } }),
+    prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { slug: true } } } }),
     prisma.participantScoreSnapshot.findMany({ orderBy: { createdAt: "asc" }, take: 5000 }),
     prisma.betBonus.findMany({
       select: {

@@ -13,7 +13,6 @@ export default async function AdminResultadosPage() {
   try {
     matches = await prisma.match.findMany({
       orderBy: [{ fecha: "asc" }, { matchNo: "asc" }],
-      take: 30,
       select: { matchId: true, matchNo: true, fase: true, jornadaId: true, homeTeam: true, awayTeam: true, homeGoals: true, awayGoals: true, qualifiedTeamId: true, status: true }
     });
   } catch {
@@ -36,9 +35,9 @@ export default async function AdminResultadosPage() {
                 <p className="text-sm font-semibold">#{match.matchNo ?? "-"} {match.homeTeam ?? "Local"} - {match.awayTeam ?? "Visitante"}</p>
                 <p className="text-xs text-slate-500">{match.fase ?? "Fase"} · {match.jornadaId ?? "Jornada"} · {match.status}</p>
               </div>
-              <input className="h-10 rounded-md border border-slate-200 px-2" name="homeGoals" defaultValue={match.homeGoals ?? ""} type="number" min="0" />
-              <input className="h-10 rounded-md border border-slate-200 px-2" name="awayGoals" defaultValue={match.awayGoals ?? ""} type="number" min="0" />
-              <input className="h-10 rounded-md border border-slate-200 px-2" name="qualifiedTeamId" defaultValue={match.qualifiedTeamId ?? ""} placeholder="Clasificado" />
+              <input aria-label="Goles local" className="h-10 rounded-md border border-slate-200 px-2" name="homeGoals" defaultValue={match.homeGoals ?? ""} type="number" min="0" />
+              <input aria-label="Goles visitante" className="h-10 rounded-md border border-slate-200 px-2" name="awayGoals" defaultValue={match.awayGoals ?? ""} type="number" min="0" />
+              <input aria-label="Equipo clasificado" className="h-10 rounded-md border border-slate-200 px-2" name="qualifiedTeamId" defaultValue={match.qualifiedTeamId ?? ""} />
               <Button name="intent" value="draft" variant="secondary">Borrador</Button>
               <Button name="intent" value="official">Oficial</Button>
             </form>

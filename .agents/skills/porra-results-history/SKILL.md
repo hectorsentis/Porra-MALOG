@@ -5,124 +5,73 @@ description: Use this skill when implementing match setup, admin result entry, o
 
 # PORRA Results and History Skill
 
-Use this skill for online scoring and historical data.
-
 ## Goal
 
 The admin must be able to enter match results from the website and the public dashboard must update after recalculation.
 
-## Match management
+## Result states
 
-Admin page:
-
-- /admin/partidos
-
-Features:
-
-- create match
-- edit home team
-- edit away team
-- edit phase
-- edit group
-- edit matchday
-- edit kickoff time
-- set Spain match flag if needed
-- mark match active/inactive
-
-## Result management
-
-Admin page:
-
-- /admin/resultados
-
-Features:
-
-- select match
-- enter home goals
-- enter away goals
-- select qualified team when needed
-- save as draft
-- publish as official
-- trigger recalculation
-- show affected scoring rows
-- show ranking changes
-- create snapshot
-
-## Production blank results
-
-The app must support official results being empty.
-
-States:
-
-- pending
-- draft
-- official
-- void
+- pending: no official result
+- draft: saved but not public
+- official: affects public ranking
+- void: ignored
 
 Only official results affect public scoring.
 
-## Recalculation run
+## Required admin routes
 
-Create RecalculationRun records.
+- /admin/partidos
+- /admin/resultados
+- /admin/logs
+- /admin/rollback
 
-Fields:
+## Result update flow
 
-- id
-- trigger
-- matchId
-- phase
-- matchday
-- status
-- warnings
-- errors
-- startedAt
-- finishedAt
-- createdBy
+1. Admin selects or creates match.
+2. Admin enters result.
+3. Admin saves draft or publishes official.
+4. Official publish creates MatchResultEvent.
+5. Official publish creates RecalculationRun.
+6. Scoring recalculates.
+7. GeneralRanking updates.
+8. RankingSnapshot is created.
+9. RankingSnapshotRow is created for every participant.
+10. Public pages are revalidated or dynamically updated.
 
-## Snapshots
+## Historical requirements
 
-After a successful recalculation:
+History powers:
 
-1. Create RankingSnapshot.
-2. Create RankingSnapshotRow for every participant.
-3. Create ParticipantScoreSnapshot for every participant.
-4. Mark snapshot as latest.
-5. Keep previous snapshot for rollback and evolution.
-
-## Evolution charts
-
-Use snapshots for:
-
-- position evolution
-- points evolution
-- points gained by event
-- movement charts
+- /evolucion
+- rankings temporales
 - consistency
 - volatility
+- daily/range rankings
 - participant profiles
+- delta position
+- delta points
 
-Never fake evolution from current ranking only.
+Never fake history from current ranking only.
 
-## Rollback
+## Empty production results
 
-Minimum viable rollback:
+The app must not break when:
 
-- mark latest snapshot inactive
-- restore previous snapshot as public latest
-- keep log entry
+- no official result exists
+- no snapshot history exists yet
+- bonus results are pending
+- imported Excel contains test results that will be cleared
 
-Better rollback:
-
-- revert match result official status too
+Use clean product empty states.
 
 ## Tests
 
 Required tests:
 
-- result update creates recalculation run
-- official result changes ranking
-- draft result does not affect ranking
-- empty result remains pending
+- pending does not score
+- draft does not score
+- official scores
+- recalculation creates snapshot
 - snapshot contains all participants
-- rollback restores previous snapshot
-- evolution query returns chronological data
+- rollback restores previous public snapshot
+- evolution queries chronological history

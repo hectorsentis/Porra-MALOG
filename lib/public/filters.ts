@@ -1,3 +1,6 @@
+import { unstable_noStore as noStore } from "next/cache";
+import { prisma } from "@/lib/prisma";
+
 export type PublicFilters = {
   alias?: string;
   departamento?: string;
@@ -7,6 +10,16 @@ export type PublicFilters = {
   grupo?: string;
   equipo?: string;
   tab?: string;
+};
+
+export type PublicFilterOptions = {
+  alias: string[];
+  departamento: string[];
+  rango: string[];
+  fase: string[];
+  jornada: string[];
+  grupo: string[];
+  equipo: string[];
 };
 
 export function parsePublicFilters(searchParams: Record<string, string | string[] | undefined>): PublicFilters {
@@ -38,4 +51,36 @@ export function filterUrl(filters: PublicFilters, removeKey?: string) {
   }
   const query = params.toString();
   return query ? `?${query}` : "?";
+}
+
+function clean(values: Array<string | null>) {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "es-ES"));
+}
+
+export async function getPublicFilterOptions(): Promise<PublicFilterOptions> {
+  noStore();
+  const [rankings, matches, teams] = await Promise.all([
+    prisma.generalRanking.findMany({
+      select: { alias: true, departamento: true, rango: true },
+      orderBy: { alias: "asc" }
+    }),
+    prisma.match.findMany({
+      select: { fase: true, jornadaId: true, grupo: true },
+      orderBy: [{ fase: "asc" }, { jornadaId: "asc" }]
+    }),
+    prisma.team.findMany({
+      select: { teamId: true, seleccion: true },
+      orderBy: { seleccion: "asc" }
+    })
+  ]);
+
+  return {
+    alias: clean(rankings.map((row) => row.alias)),
+    departamento: clean(rankings.map((row) => row.departamento)),
+    rango: clean(rankings.map((row) => row.rango)),
+    fase: clean(matches.map((row) => row.fase)),
+    jornada: clean(matches.map((row) => row.jornadaId)),
+    grupo: clean(matches.map((row) => row.grupo)),
+    equipo: clean(teams.map((team) => team.seleccion || team.teamId))
+  };
 }

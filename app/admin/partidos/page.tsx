@@ -37,22 +37,22 @@ export default async function AdminPartidosPage() {
           <CardHeader><CardTitle>Crear o editar partido</CardTitle></CardHeader>
           <CardContent>
             <form action={saveMatchAction} className="grid gap-3 md:grid-cols-4">
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="matchId" placeholder="ID partido" required />
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="matchNo" placeholder="Numero" type="number" />
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="fecha" type="datetime-local" />
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="jornadaId" placeholder="Jornada" />
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="fase" placeholder="Fase" />
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="grupo" placeholder="Grupo" />
-              <select className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="homeTeamId">
-                <option value="">Equipo local</option>
+              <label className="grid gap-1 text-sm">ID partido<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="matchId" required /></label>
+              <label className="grid gap-1 text-sm">Numero<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="matchNo" type="number" /></label>
+              <label className="grid gap-1 text-sm">Fecha<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="fecha" type="datetime-local" /></label>
+              <label className="grid gap-1 text-sm">Jornada<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="jornadaId" /></label>
+              <label className="grid gap-1 text-sm">Fase<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="fase" /></label>
+              <label className="grid gap-1 text-sm">Grupo<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="grupo" /></label>
+              <label className="grid gap-1 text-sm">Equipo local<select className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="homeTeamId">
+                <option value="">Sin asignar</option>
                 {teams.map((team) => <option key={team.teamId} value={team.teamId}>{team.seleccion}</option>)}
-              </select>
-              <select className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="awayTeamId">
-                <option value="">Equipo visitante</option>
+              </select></label>
+              <label className="grid gap-1 text-sm">Equipo visitante<select className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="awayTeamId">
+                <option value="">Sin asignar</option>
                 {teams.map((team) => <option key={team.teamId} value={team.teamId}>{team.seleccion}</option>)}
-              </select>
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="homeTeam" placeholder="Nombre local" />
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="awayTeam" placeholder="Nombre visitante" />
+              </select></label>
+              <label className="grid gap-1 text-sm">Nombre local<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="homeTeam" /></label>
+              <label className="grid gap-1 text-sm">Nombre visitante<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="awayTeam" /></label>
               <label className="flex h-10 items-center gap-2 text-sm"><input name="needsPens" type="checkbox" /> Puede requerir penaltis</label>
               <Button>Guardar partido</Button>
             </form>

@@ -47,12 +47,14 @@ export function ClassificationTable({ rows }: { rows: PublicClassificationRow[] 
 
   return (
     <div className="space-y-3">
-      <input
-        className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm"
-        placeholder="Buscar por alias, departamento o rango"
-        value={globalFilter}
-        onChange={(event) => setGlobalFilter(event.target.value)}
-      />
+      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Buscar
+        <input
+          className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-900"
+          value={globalFilter}
+          onChange={(event) => setGlobalFilter(event.target.value)}
+        />
+      </label>
       <div className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full min-w-[820px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">

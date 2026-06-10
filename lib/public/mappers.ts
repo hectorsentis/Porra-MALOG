@@ -1,9 +1,21 @@
-import type { Classification, Participant } from "@prisma/client";
 import type { PublicClassificationRow } from "./dto";
 
-export function toPublicClassificationRow(
-  row: Classification & { participant?: Pick<Participant, "slug"> | null }
-): PublicClassificationRow {
+type PublicRankingShape = {
+  alias: string;
+  departamento: string | null;
+  rango: string | null;
+  pos: number;
+  deltaPos: number;
+  deltaPoints: number;
+  pointsTotal: number;
+  pointsMatches: number;
+  pointsGroups: number;
+  pointsEliminatorias: number;
+  pointsBonus: number;
+  participant?: { slug: string } | null;
+};
+
+export function toPublicClassificationRow(row: PublicRankingShape): PublicClassificationRow {
   return {
     slug: row.participant?.slug ?? row.alias.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
     alias: row.alias,

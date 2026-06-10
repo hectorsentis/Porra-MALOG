@@ -55,6 +55,10 @@ export async function saveResultAction(formData: FormData) {
   if (!previous) redirect("/admin/resultados?error=1");
 
   await prisma.$transaction(async (tx) => {
+    await tx.matchResult.updateMany({
+      where: { matchId, status: publishOfficial ? "OFFICIAL" : "DRAFT", isActive: true },
+      data: { isActive: false }
+    });
     await tx.match.update({
       where: { matchId },
       data: {
@@ -65,6 +69,18 @@ export async function saveResultAction(formData: FormData) {
         status: publishOfficial ? "OFFICIAL" : "DRAFT",
         resultText: homeGoals == null || awayGoals == null ? null : `${homeGoals}-${awayGoals}`,
         goalDiff: homeGoals == null || awayGoals == null ? null : homeGoals - awayGoals
+      }
+    });
+    await tx.matchResult.create({
+      data: {
+        matchId,
+        status: publishOfficial ? "OFFICIAL" : "DRAFT",
+        homeGoals,
+        awayGoals,
+        qualifiedTeamId,
+        isActive: true,
+        isOfficial: publishOfficial,
+        createdBy: "admin"
       }
     });
     await tx.matchResultEvent.create({
@@ -101,16 +117,23 @@ export async function saveMatchAction(formData: FormData) {
   const matchId = String(formData.get("matchId") ?? "").trim();
   const matchNoRaw = String(formData.get("matchNo") ?? "");
   const fechaRaw = String(formData.get("fecha") ?? "");
+  const homeTeamId = String(formData.get("homeTeamId") ?? "") || null;
+  const awayTeamId = String(formData.get("awayTeamId") ?? "") || null;
+  const teams = await prisma.team.findMany({
+    where: { teamId: { in: [homeTeamId, awayTeamId].filter((value): value is string => Boolean(value)) } },
+    select: { teamId: true, seleccion: true }
+  });
+  const teamNameById = new Map(teams.map((team) => [team.teamId, team.seleccion]));
   const data = {
     matchNo: matchNoRaw === "" ? null : Number(matchNoRaw),
     fecha: fechaRaw ? new Date(fechaRaw) : null,
     jornadaId: String(formData.get("jornadaId") ?? "") || null,
     fase: String(formData.get("fase") ?? "") || null,
     grupo: String(formData.get("grupo") ?? "") || null,
-    homeTeamId: String(formData.get("homeTeamId") ?? "") || null,
-    awayTeamId: String(formData.get("awayTeamId") ?? "") || null,
-    homeTeam: String(formData.get("homeTeam") ?? "") || null,
-    awayTeam: String(formData.get("awayTeam") ?? "") || null,
+    homeTeamId,
+    awayTeamId,
+    homeTeam: String(formData.get("homeTeam") ?? "") || teamNameById.get(homeTeamId ?? "") || null,
+    awayTeam: String(formData.get("awayTeam") ?? "") || teamNameById.get(awayTeamId ?? "") || null,
     needsPens: formData.get("needsPens") === "on"
   };
   if (!matchId) redirect("/admin/partidos?error=1");
@@ -145,7 +168,8 @@ export async function clearTestResultsAction() {
     await tx.scoringMatch.deleteMany();
     await tx.scoringGroup.deleteMany();
     await tx.scoringBonus.deleteMany();
-    await tx.classification.updateMany({
+    await tx.matchResult.updateMany({ data: { isActive: false } });
+    await tx.generalRanking.updateMany({
       data: {
         pointsMatches: 0,
         pointsGroups: 0,
@@ -223,8 +247,8 @@ export async function rollbackAction() {
       await tx.rankingSnapshot.update({ where: { id: latest.id }, data: { isPublished: false, isLatest: false } });
     }
     await tx.rankingSnapshot.update({ where: { id: snapshot.id }, data: { isPublished: true, isLatest: true } });
-    await tx.classification.deleteMany();
-    await tx.classification.createMany({
+    await tx.generalRanking.deleteMany();
+    await tx.generalRanking.createMany({
       data: snapshot.rows.map((row) => ({
         pos: row.pos,
         participantId: row.participantId,

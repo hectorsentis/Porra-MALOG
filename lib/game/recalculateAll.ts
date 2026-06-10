@@ -49,7 +49,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
       prisma.participant.findMany(),
       prisma.betMatch.findMany(),
       prisma.match.findMany(),
-      prisma.classification.findMany()
+      prisma.generalRanking.findMany()
     ]);
 
     const matchById = new Map(matches.map((match) => [match.matchId, match]));
@@ -113,7 +113,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
 
     await prisma.$transaction(async (tx) => {
       await tx.scoringMatch.deleteMany();
-      await tx.classification.deleteMany();
+      await tx.generalRanking.deleteMany();
       await tx.scoringMatch.createMany({
         data: scores.map((score) => ({
           betId: score.betId,
@@ -133,7 +133,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           pointsTotal: score.pointsTotal
         }))
       });
-      await tx.classification.createMany({
+      await tx.generalRanking.createMany({
         data: ranking.map((row) => ({
           pos: row.pos,
           participantId: row.participantId,
@@ -158,7 +158,8 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           eventLabel,
           matchId: eventMatch?.matchId,
           phase: eventMatch?.fase,
-          matchday: eventMatch?.jornadaId
+          matchday: eventMatch?.jornadaId,
+          recalculationRunId: run.id
         }
       });
       const snapshotRows = ranking.map((row) => {

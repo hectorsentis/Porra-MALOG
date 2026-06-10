@@ -20,7 +20,9 @@ import {
 
 const colors = ["#1E3A8A", "#3B82F6", "#D4AF37", "#16A34A", "#DC2626"];
 
-export function DistributionChart({ data }: { data: Array<Record<string, string | number>> }) {
+type ChartRow = Record<string, string | number | null | undefined>;
+
+export function DistributionChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data}>
@@ -34,7 +36,7 @@ export function DistributionChart({ data }: { data: Array<Record<string, string 
   );
 }
 
-export function PointCompositionChart({ data }: { data: Array<Record<string, string | number>> }) {
+export function PointCompositionChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={320}>
       <BarChart data={data} margin={{ left: 8, right: 12 }}>
@@ -51,7 +53,7 @@ export function PointCompositionChart({ data }: { data: Array<Record<string, str
   );
 }
 
-export function RankingDensityChart({ data }: { data: Array<Record<string, string | number>> }) {
+export function RankingDensityChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <ComposedChart data={data}>
@@ -66,7 +68,7 @@ export function RankingDensityChart({ data }: { data: Array<Record<string, strin
   );
 }
 
-export function AccuracyChart({ data }: { data: Array<Record<string, string | number>> }) {
+export function AccuracyChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
@@ -82,7 +84,7 @@ export function AccuracyChart({ data }: { data: Array<Record<string, string | nu
   );
 }
 
-export function EvolutionLineChart({ data }: { data: Array<Record<string, string | number>> }) {
+export function EvolutionLineChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={320}>
       <LineChart data={data}>
@@ -97,7 +99,7 @@ export function EvolutionLineChart({ data }: { data: Array<Record<string, string
   );
 }
 
-export function SimpleBarChart({ data, nameKey = "name", valueKey = "value" }: { data: Array<Record<string, string | number>>; nameKey?: string; valueKey?: string }) {
+export function SimpleBarChart({ data, nameKey = "name", valueKey = "value" }: { data: ChartRow[]; nameKey?: string; valueKey?: string }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data}>
@@ -111,7 +113,7 @@ export function SimpleBarChart({ data, nameKey = "name", valueKey = "value" }: {
   );
 }
 
-export function RarityScatterChart({ data }: { data: Array<Record<string, string | number>> }) {
+export function RarityScatterChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
       <ScatterChart>
