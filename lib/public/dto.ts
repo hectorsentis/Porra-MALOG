@@ -26,6 +26,7 @@ export type PublicDashboardData = {
 };
 
 export type PublicParticipantProfile = PublicClassificationRow & {
+  participantId: string;
   betsCount: number;
   exactScores: number;
   correctSigns: number;

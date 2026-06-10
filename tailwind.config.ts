@@ -6,22 +6,46 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: "hsl(var(--border))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        border: "var(--border)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        white: "var(--bg-card)",
         primary: {
-          DEFAULT: "#1E3A8A",
+          DEFAULT: "var(--ea-blue-light)",
           foreground: "#FFFFFF"
         },
+        slate: {
+          50: "var(--bg-elevated)",
+          100: "var(--border-light)",
+          200: "var(--border)",
+          300: "var(--border-light)",
+          400: "var(--text-muted)",
+          500: "var(--text-secondary)",
+          600: "var(--text-secondary)",
+          700: "var(--text-secondary)",
+          800: "var(--text-primary)",
+          900: "var(--text-primary)",
+          950: "var(--text-primary)"
+        },
         air: {
-          light: "#3B82F6",
-          dark: "#0F172A",
-          gold: "#D4AF37",
-          up: "#16A34A",
-          down: "#DC2626",
-          page: "#F8FAFC",
-          card: "#FFFFFF"
+          light: "var(--ea-blue-light)",
+          dark: "var(--bg-surface)",
+          gold: "var(--ea-gold)",
+          up: "var(--color-success-fg)",
+          down: "var(--color-danger-fg)",
+          page: "var(--bg-base)",
+          card: "var(--bg-card)"
         }
+      },
+      fontFamily: {
+        display: ["var(--font-display)"],
+        body: ["var(--font-body)"],
+        mono: ["var(--font-mono)"]
+      },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        blue: "var(--shadow-blue)",
+        gold: "var(--shadow-gold)"
       },
       borderRadius: {
         lg: "0.5rem",

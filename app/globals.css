@@ -3,9 +3,55 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 40% 98%;
-  --foreground: 222 47% 11%;
-  --border: 214 32% 91%;
+  /* Fondos */
+  --bg-base:        #080C18;
+  --bg-surface:     #0D1426;
+  --bg-card:        #121A2E;
+  --bg-elevated:    #1A2440;
+  --bg-input:       #0F1829;
+
+  /* Marca Ejercito del Aire */
+  --ea-blue-dark:   #001F6B;
+  --ea-blue:        #003087;
+  --ea-blue-light:  #1565C0;
+  --ea-gold:        #C8A84B;
+  --ea-gold-light:  #FFD700;
+  --ea-gold-pale:   #EDD98A;
+
+  /* Semanticos */
+  --color-success:    #1B5E20;
+  --color-success-fg: #4CAF50;
+  --color-danger:     #7F0000;
+  --color-danger-fg:  #EF5350;
+  --color-warning:    #E65100;
+  --color-warning-fg: #FF9800;
+  --color-info:       #0D47A1;
+  --color-info-fg:    #42A5F5;
+
+  /* Texto */
+  --text-primary:   #E8ECF4;
+  --text-secondary: #8892A4;
+  --text-muted:     #4A5568;
+  --text-accent:    var(--ea-gold-pale);
+
+  /* Bordes */
+  --border:         #1A2440;
+  --border-light:   #243356;
+  --border-accent:  var(--ea-gold);
+
+  /* Fondo y texto base (legacy tokens usados por Tailwind) */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+
+  /* Sombras */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-blue: 0 0 20px rgba(0, 48, 135, 0.3);
+  --shadow-gold: 0 0 20px rgba(200, 168, 75, 0.2);
+
+  /* Tipografia */
+  --font-display: var(--font-rajdhani), "Exo 2", sans-serif;
+  --font-body:    var(--font-inter), system-ui, sans-serif;
+  --font-mono:    var(--font-jetbrains-mono), "Fira Code", monospace;
 }
 
 * {
@@ -13,14 +59,38 @@
 }
 
 body {
+  position: relative;
   margin: 0;
-  background: #f8fafc;
-  color: #0f172a;
+  min-height: 100vh;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(0, 48, 135, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(200, 168, 75, 0.05) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
 }
 
 .dashboard-grid {
@@ -32,5 +102,22 @@ a {
 @media (min-width: 1024px) {
   .dashboard-grid {
     grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.6fr);
+  }
+}
+
+.loading-reticle {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  border: 2px solid var(--border-accent);
+  border-top-color: transparent;
+  animation: loading-spin 0.9s linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

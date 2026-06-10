@@ -4,6 +4,7 @@ import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PhaseBadge } from "@/components/ui/phase-badge";
 import { getPublicMatchDetail } from "@/lib/public/matches";
 import { predictionSign } from "@/lib/public/matchStats";
 
@@ -17,12 +18,14 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ ma
 
   return (
     <PublicShell>
-      <PageTitle title={`${match.homeTeam} - ${match.awayTeam}`} subtitle={`${match.fase ?? "Fase"} - ${match.jornadaId ?? "Jornada"}`} />
+      <PageTitle title={`${match.homeTeam} - ${match.awayTeam}`} subtitle={match.jornadaId ?? "Jornada"} />
+      <div className="-mt-3 mb-4"><PhaseBadge fase={match.fase} /></div>
       <section className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <Card>
           <CardHeader><CardTitle>Resumen del partido</CardTitle></CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-4">
+          <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             <div><p className="text-xs uppercase text-slate-500">Estado</p><Badge>{match.statusLabel}</Badge></div>
+            <div><p className="text-xs uppercase text-slate-500">Fecha</p><p className="text-2xl font-bold">{match.fecha ? new Date(match.fecha).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" }) : "Por confirmar"}</p>{match.hora ? <p className="text-sm text-slate-500">{match.hora}</p> : null}</div>
             <div><p className="text-xs uppercase text-slate-500">Resultado</p><p className="text-2xl font-bold">{match.resultText ?? "-"}</p></div>
             <div><p className="text-xs uppercase text-slate-500">Puntos</p><p className="text-2xl font-bold">{detail.pointsDistributed}</p></div>
             <div><p className="text-xs uppercase text-slate-500">Exactos</p><p className="text-2xl font-bold">{detail.exactScores}</p></div>

@@ -20,12 +20,12 @@ export function ImportPanel() {
             <Button name="intent" value="import" disabled={pending}>Importar</Button>
           </div>
         </form>
-        {state.error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-air-down">{state.error}</p> : null}
+        {state.error ? <p className="mt-3 rounded-md border border-air-down bg-[var(--color-danger)]/20 p-3 text-sm text-air-down">{state.error}</p> : null}
         {state.preview ? (
           <div className="mt-4 grid gap-3">
             <p className="text-sm font-semibold">{state.preview.dryRun ? "Preview sin persistir" : "Import completado"}</p>
-            <pre className="max-h-72 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-50">{JSON.stringify(state.preview.counts, null, 2)}</pre>
-            {state.preview.warnings.length ? <pre className="max-h-48 overflow-auto rounded-md bg-amber-50 p-3 text-xs text-amber-900">{state.preview.warnings.join("\n")}</pre> : null}
+            <pre className="max-h-72 overflow-auto rounded-md bg-[var(--bg-input)] p-3 text-xs text-[var(--text-primary)] font-mono">{JSON.stringify(state.preview.counts, null, 2)}</pre>
+            {state.preview.warnings.length ? <pre className="max-h-48 overflow-auto rounded-md border border-air-gold bg-[var(--color-warning)]/20 p-3 text-xs text-air-gold font-mono">{state.preview.warnings.join("\n")}</pre> : null}
           </div>
         ) : null}
       </CardContent>

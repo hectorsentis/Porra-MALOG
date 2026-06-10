@@ -154,6 +154,54 @@ function bool(value: unknown): boolean {
   return ["true", "1", "yes", "si", "sí", "x", "finished", "finalizado"].includes(raw ?? "");
 }
 
+/**
+ * Normalizes a time-of-day string to "HH:MM". Excel stores time-only cells as
+ * datetimes anchored at 1899-12-30, and the raw serial value can carry sub-minute
+ * floating point drift that doesn't match what Excel actually displays for the cell.
+ */
+function normalizeHora(value: string | null): string | null {
+  if (!value) return null;
+  const match = value.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return value;
+  return `${match[1].padStart(2, "0")}:${match[2]}`;
+}
+
+/**
+ * Reads the "Hora" column of 04_MATCHES using Excel's own display formatting
+ * (raw: false), keyed by Match_ID, so the imported value matches what's shown
+ * in the spreadsheet instead of the raw 1899-12-30-anchored serial value.
+ */
+function matchHoraDisplayMap(workbook: XLSX.WorkBook): Map<string, string> {
+  const result = new Map<string, string>();
+  const sheet = workbook.Sheets["04_MATCHES"];
+  if (!sheet) return result;
+  const rawMatrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: null });
+  const formattedMatrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false, defval: null });
+
+  let matchIdIndex = -1;
+  let horaIndex = -1;
+  let headerRowNumber = -1;
+  for (let rowNumber = 0; rowNumber < Math.min(rawMatrix.length, 20); rowNumber += 1) {
+    const candidates = rawMatrix[rowNumber].map((value) => text(value) ?? "");
+    const mIndex = candidates.indexOf("Match_ID");
+    const hIndex = candidates.indexOf("Hora");
+    if (mIndex !== -1 && hIndex !== -1) {
+      headerRowNumber = rowNumber;
+      matchIdIndex = mIndex;
+      horaIndex = hIndex;
+      break;
+    }
+  }
+  if (headerRowNumber === -1) return result;
+
+  for (let rowNumber = headerRowNumber + 1; rowNumber < rawMatrix.length; rowNumber += 1) {
+    const matchId = text(rawMatrix[rowNumber]?.[matchIdIndex]);
+    const formattedHora = formattedMatrix[rowNumber]?.[horaIndex];
+    if (matchId && formattedHora != null) result.set(matchId, String(formattedHora));
+  }
+  return result;
+}
+
 function rowsByHeader(workbook: XLSX.WorkBook, sheetName: string, requiredHeaders: string[]): Record<string, unknown>[] {
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) return [];
@@ -360,6 +408,11 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
       if (!parsed.success) warnings.push(`Classification row ${index + 1}: ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
       return row;
     });
+
+  const horaByMatchId = matchHoraDisplayMap(workbook);
+  for (const match of matches) {
+    match.hora = normalizeHora(horaByMatchId.get(match.matchId) ?? match.hora);
+  }
 
   const participantIdsParsed = new Set(participants.map((participant) => participant.participantId));
   for (const classification of classifications) {

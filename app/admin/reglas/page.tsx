@@ -12,7 +12,7 @@ export default async function AdminReglasPage() {
       <Card>
         <CardHeader><CardTitle>Reglas activas</CardTitle></CardHeader>
         <CardContent>
-          <pre className="overflow-auto rounded-md bg-slate-950 p-3 text-xs text-white">{JSON.stringify(defaultRules, null, 2)}</pre>
+          <pre className="overflow-auto rounded-md bg-[var(--bg-input)] p-3 text-xs text-[var(--text-primary)] font-mono">{JSON.stringify(defaultRules, null, 2)}</pre>
         </CardContent>
       </Card>
     </AdminShell>

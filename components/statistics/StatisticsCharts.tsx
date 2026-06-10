@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { ReactNode } from "react";
 import {
@@ -19,7 +19,20 @@ import {
   YAxis
 } from "recharts";
 
-const colors = ["#1E3A8A", "#3B82F6", "#D4AF37", "#16A34A", "#DC2626"];
+const colors = ["#1565C0", "#C8A84B", "#4CAF50", "#EF5350", "#42A5F5"];
+const axisColor = "#8892A4";
+const gridColor = "#243356";
+const axisTick = { fill: axisColor, fontSize: 11 };
+const tooltipContentStyle = {
+  background: "#121A2E",
+  border: "1px solid #243356",
+  borderRadius: 8,
+  color: "#E8ECF4",
+  fontFamily: "var(--font-body)"
+};
+const tooltipLabelStyle = { color: "#C8A84B" };
+const tooltipItemStyle = { color: "#E8ECF4" };
+
 const labelMap: Record<string, string> = {
   pointsTotal: "Puntos",
   gapPrevious: "Distancia anterior",
@@ -52,11 +65,11 @@ export function DistributionChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="alias" tick={{ fontSize: 11 }} />
-        <YAxis />
-        <Tooltip formatter={tooltipFormatter} />
-        <Bar dataKey="pointsTotal" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="alias" tick={axisTick} />
+        <YAxis tick={axisTick} />
+        <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ fill: "rgba(200, 168, 75, 0.08)" }} />
+        <Bar dataKey="pointsTotal" fill={colors[0]} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -66,14 +79,14 @@ export function PointCompositionChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={320}>
       <BarChart data={data} margin={{ left: 8, right: 12 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="alias" tick={{ fontSize: 11 }} />
-        <YAxis />
-        <Tooltip formatter={tooltipFormatter} />
-        <Bar dataKey="partidos" stackId="points" fill="#1E3A8A" />
-        <Bar dataKey="grupos" stackId="points" fill="#3B82F6" />
-        <Bar dataKey="eliminatorias" stackId="points" fill="#D4AF37" />
-        <Bar dataKey="bonus" stackId="points" fill="#16A34A" />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="alias" tick={axisTick} />
+        <YAxis tick={axisTick} />
+        <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ fill: "rgba(200, 168, 75, 0.08)" }} />
+        <Bar dataKey="partidos" stackId="points" fill={colors[0]} />
+        <Bar dataKey="grupos" stackId="points" fill={colors[4]} />
+        <Bar dataKey="eliminatorias" stackId="points" fill={colors[1]} />
+        <Bar dataKey="bonus" stackId="points" fill={colors[2]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -83,12 +96,12 @@ export function RankingDensityChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <ComposedChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="alias" tick={{ fontSize: 11 }} />
-        <YAxis />
-        <Tooltip formatter={tooltipFormatter} />
-        <Bar dataKey="gapPrevious" fill="#3B82F6" />
-        <Line dataKey="gapLeader" stroke="#D4AF37" strokeWidth={2} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="alias" tick={axisTick} />
+        <YAxis tick={axisTick} />
+        <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ fill: "rgba(200, 168, 75, 0.08)" }} />
+        <Bar dataKey="gapPrevious" fill={colors[4]} />
+        <Line dataKey="gapLeader" stroke={colors[1]} strokeWidth={2} dot={false} />
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -98,13 +111,13 @@ export function AccuracyChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="alias" tick={{ fontSize: 11 }} />
-        <YAxis />
-        <Tooltip formatter={tooltipFormatter} />
-        <Bar dataKey="exactScores" fill="#1E3A8A" />
-        <Bar dataKey="correctSigns" fill="#3B82F6" />
-        <Bar dataKey="correctDiff" fill="#D4AF37" />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="alias" tick={axisTick} />
+        <YAxis tick={axisTick} />
+        <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ fill: "rgba(200, 168, 75, 0.08)" }} />
+        <Bar dataKey="exactScores" fill={colors[0]} />
+        <Bar dataKey="correctSigns" fill={colors[4]} />
+        <Bar dataKey="correctDiff" fill={colors[1]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -114,12 +127,12 @@ export function EvolutionLineChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={320}>
       <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="eventLabel" tick={{ fontSize: 11 }} />
-        <YAxis />
-        <Tooltip formatter={tooltipFormatter} />
-        <Line dataKey="pointsTotal" stroke="#1E3A8A" strokeWidth={2} dot={false} />
-        <Line dataKey="pos" stroke="#D4AF37" strokeWidth={2} dot={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="eventLabel" tick={axisTick} />
+        <YAxis tick={axisTick} />
+        <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ stroke: gridColor }} />
+        <Line dataKey="pointsTotal" stroke={colors[0]} strokeWidth={2} dot={false} />
+        <Line dataKey="pos" stroke={colors[1]} strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -129,11 +142,11 @@ export function SimpleBarChart({ data, nameKey = "name", valueKey = "value" }: {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey={nameKey} tick={{ fontSize: 11 }} />
-        <YAxis />
-        <Tooltip formatter={tooltipFormatter} />
-        <Bar dataKey={valueKey} fill="#1E3A8A" radius={[4, 4, 0, 0]} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey={nameKey} tick={axisTick} />
+        <YAxis tick={axisTick} />
+        <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ fill: "rgba(200, 168, 75, 0.08)" }} />
+        <Bar dataKey={valueKey} fill={colors[0]} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -143,11 +156,11 @@ export function RarityScatterChart({ data }: { data: ChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
       <ScatterChart>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="rarity" name="Rareza" />
-        <YAxis dataKey="points" name="Puntos" />
-        <Tooltip cursor={{ strokeDasharray: "3 3" }} formatter={tooltipFormatter} />
-        <Scatter data={data} fill="#D4AF37" />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="rarity" name="Rareza" tick={axisTick} />
+        <YAxis dataKey="points" name="Puntos" tick={axisTick} />
+        <Tooltip cursor={{ strokeDasharray: "3 3" }} formatter={tooltipFormatter} contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+        <Scatter data={data} fill={colors[1]} />
       </ScatterChart>
     </ResponsiveContainer>
   );
@@ -162,9 +175,8 @@ export function PrizePieChart({ data }: { data: Array<{ name: string; value: num
             <Cell key={entry.name} fill={colors[index % colors.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={tooltipFormatter} />
+        <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
       </PieChart>
     </ResponsiveContainer>
   );
 }
-

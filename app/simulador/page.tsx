@@ -41,7 +41,7 @@ export default async function SimuladorPage({ searchParams }: { searchParams: Pr
               Clasificado
               <input name="qualifiedTeamId" defaultValue={filters.qualifiedTeamId ?? ""} className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-900" placeholder="Opcional" />
             </label>
-            <button className="h-10 self-end rounded-md bg-primary px-4 text-sm font-semibold text-white">Simular</button>
+            <button className="h-10 self-end rounded-md bg-primary px-4 text-sm font-semibold text-[#FFFFFF]">Simular</button>
           </form>
           {data.availableMatches.length === 0 ? <p className="mt-3 text-sm text-slate-600">No hay partidos pendientes disponibles para simular.</p> : null}
         </CardContent>

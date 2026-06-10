@@ -116,6 +116,7 @@ export async function getPublicParticipant(slug: string): Promise<PublicParticip
     if (!participant?.generalRanking) return null;
     return {
       ...toPublicClassificationRow({ ...participant.generalRanking, participant }),
+      participantId: participant.generalRanking.participantId,
       betsCount: participant.matchBets.length,
       exactScores: participant.generalRanking.exactScores,
       correctSigns: participant.generalRanking.correctSigns

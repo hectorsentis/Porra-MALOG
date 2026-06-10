@@ -59,6 +59,15 @@ export default async function EstadisticasPage({
   const activeTab = filters.tab ?? "resumen";
   const stats = await getAdvancedStatistics(filters);
   const currency = stats.bote.currency ?? "EUR";
+  const hasResults = stats.ranking.some((row) => row.pointsTotal > 0);
+  const podiumStyles = [
+    "border-2 border-[var(--ea-gold-light)] bg-[var(--ea-gold-light)]/10",
+    "border-2 border-slate-300/40 bg-white/5",
+    "border-2 border-[#CD7F32]/60 bg-[#CD7F32]/10"
+  ];
+  const accuracyTable = stats.accuracy
+    .map((row, index) => ({ ...row, pos: stats.ranking[index]?.pos ?? index + 1, slug: stats.ranking[index]?.slug }))
+    .sort((a, b) => b.hitRate - a.hitRate || b.exactScores - a.exactScores);
   const prizeData = [
     { name: "Primer premio", value: stats.bote.first },
     { name: "Segundo premio", value: stats.bote.second },
@@ -71,12 +80,21 @@ export default async function EstadisticasPage({
       <PageTitle title="Estadisticas" subtitle="Analisis de clasificacion, apuestas, evolucion y bote." />
       <PublicFiltersForm filters={filters} />
       <FilterChips filters={filters} basePath="/estadisticas" />
+      {!hasResults ? (
+        <Card className="mb-4 border-air-gold bg-[var(--color-warning)]/10">
+          <CardContent>
+            <p className="text-sm text-air-gold">
+              Aun no hay resultados oficiales computados. Los graficos de aciertos, evolucion y volatilidad se iran rellenando partido a partido en cuanto se publiquen los primeros marcadores.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
       <nav className="mb-4 flex gap-2 overflow-x-auto">
         {tabs.map(([key, label]) => (
           <Link
             key={key}
             href={tabHref(key, filters)}
-            className={`rounded-md border px-3 py-2 text-sm font-semibold ${activeTab === key ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-700"}`}
+            className={`rounded-md border px-3 py-2 text-sm font-semibold ${activeTab === key ? "border-primary bg-primary text-[#FFFFFF]" : "border-slate-200 bg-white text-slate-700"}`}
           >
             {label}
           </Link>
@@ -85,6 +103,20 @@ export default async function EstadisticasPage({
 
       {activeTab === "resumen" ? (
         <section className="grid gap-4">
+          {stats.ranking.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {stats.ranking.slice(0, 3).map((row, index) => (
+                <Card key={row.slug} className={podiumStyles[index]}>
+                  <CardContent>
+                    <p className="text-xs uppercase text-slate-500">Posicion #{row.pos}</p>
+                    <Link href={`/participantes/${row.slug}`} className="block truncate text-lg font-bold text-primary">{row.alias}</Link>
+                    <p className="text-3xl font-bold">{row.pointsTotal} <span className="text-sm font-normal text-slate-500">pts</span></p>
+                    <p className="text-xs text-slate-500">{row.departamento ?? "Sin departamento"} - {row.rango ?? "Sin rango"}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : null}
           <div className="grid gap-3 md:grid-cols-4">
             <Stat label="Media" value={stats.summary.average} />
             <Stat label="Mediana" value={stats.summary.median} />
@@ -126,6 +158,38 @@ export default async function EstadisticasPage({
               <Card key={row.alias}><CardContent><p className="font-bold">{row.alias}</p><p className="text-sm text-slate-600">Exactos {row.exactScores} - Signos {row.correctSigns} - Dif {row.correctDiff}</p></CardContent></Card>
             ))}
           </div>
+          <Card>
+            <CardHeader><CardTitle>Ranking de precision</CardTitle></CardHeader>
+            <CardContent className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Pos</th>
+                    <th className="px-3 py-2">Alias</th>
+                    <th className="px-3 py-2">Exactos</th>
+                    <th className="px-3 py-2">Signos</th>
+                    <th className="px-3 py-2">Diferencias</th>
+                    <th className="px-3 py-2">Clasif. grupo</th>
+                    <th className="px-3 py-2">% Acierto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accuracyTable.map((row) => (
+                    <tr key={row.alias} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-semibold text-primary">#{row.pos}</td>
+                      <td className="px-3 py-2">{row.slug ? <Link className="font-semibold text-primary" href={`/participantes/${row.slug}`}>{row.alias}</Link> : row.alias}</td>
+                      <td className="px-3 py-2">{row.exactScores}</td>
+                      <td className="px-3 py-2">{row.correctSigns}</td>
+                      <td className="px-3 py-2">{row.correctDiff}</td>
+                      <td className="px-3 py-2">{row.groupQualified}</td>
+                      <td className="px-3 py-2 font-bold">{row.hitRate}%</td>
+                    </tr>
+                  ))}
+                  {accuracyTable.length === 0 ? <tr><td colSpan={7} className="px-3 py-4 text-center text-sm text-slate-500">Sin datos disponibles.</td></tr> : null}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
         </section>
       ) : null}
 

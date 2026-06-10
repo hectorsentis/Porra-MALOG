@@ -43,7 +43,7 @@ async function ContextFilters({ filters, tab }: { filters: PublicFilters; tab: s
           </select>
         </label>
       ))}
-      <button className="h-10 self-end rounded-md bg-primary px-4 text-sm font-semibold text-white">Filtrar</button>
+      <button className="h-10 self-end rounded-md bg-primary px-4 text-sm font-semibold text-[#FFFFFF]">Filtrar</button>
     </form>
   );
 }
@@ -70,7 +70,7 @@ export default async function ApuestasPage({
       <PageTitle title="Apuestas" subtitle="Lectura de bonus inicial, partidos de fase de grupos y clasificacion apostada." />
       <nav className="mb-4 flex gap-2 overflow-x-auto">
         {tabs.map(([key, label]) => (
-          <Link key={key} href={tabHref(key, filters)} className={`rounded-md border px-3 py-2 text-sm font-semibold ${activeTab === key ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-700"}`}>{label}</Link>
+          <Link key={key} href={tabHref(key, filters)} className={`rounded-md border px-3 py-2 text-sm font-semibold ${activeTab === key ? "border-primary bg-primary text-[#FFFFFF]" : "border-slate-200 bg-white text-slate-700"}`}>{label}</Link>
         ))}
       </nav>
       <ContextFilters filters={filters} tab={activeTab} />

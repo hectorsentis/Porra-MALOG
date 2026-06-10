@@ -4,6 +4,7 @@ import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { PhaseBadge } from "@/components/ui/phase-badge";
 import { parsePublicFilters } from "@/lib/public/filters";
 import { getMatchFilterOptions, getPublicMatches } from "@/lib/public/matches";
 
@@ -49,7 +50,7 @@ export default async function PartidosPage({ searchParams }: { searchParams: Pro
             </select>
           </label>
         ))}
-        <button className="h-10 self-end rounded-md bg-primary px-4 text-sm font-semibold text-white">Filtrar</button>
+        <button className="h-10 self-end rounded-md bg-primary px-4 text-sm font-semibold text-[#FFFFFF]">Filtrar</button>
       </form>
       <FilterChips filters={filters} basePath="/partidos" />
       <div className="grid gap-3">
@@ -59,7 +60,8 @@ export default async function PartidosPage({ searchParams }: { searchParams: Pro
               <div>
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <Badge className={statusClass(match.status)}>{match.statusLabel}</Badge>
-                  <span className="text-xs font-semibold uppercase text-slate-500">{match.fase ?? "Fase"} - {match.jornadaId ?? "Jornada"}</span>
+                  <PhaseBadge fase={match.fase} />
+                  <span className="text-xs font-semibold uppercase text-slate-500">{match.jornadaId ?? "Jornada"}</span>
                 </div>
                 <Link href={`/partidos/${match.matchId}`} className="text-lg font-bold text-primary">{match.homeTeam} - {match.awayTeam}</Link>
                 <p className="text-sm text-slate-600">{match.fecha ? new Date(match.fecha).toLocaleDateString("es-ES") : "Fecha por confirmar"} {match.hora ?? ""}</p>

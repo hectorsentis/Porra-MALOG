@@ -40,7 +40,7 @@ function DateFilter({ filters, days }: { filters: PublicFilters; days: string[] 
           {days.map((day) => <option key={day} value={day}>{day}</option>)}
         </select>
       </label>
-      <button className="h-10 self-end rounded-md bg-primary px-4 text-sm font-semibold text-white">Aplicar</button>
+      <button className="h-10 self-end rounded-md bg-primary px-4 text-sm font-semibold text-[#FFFFFF]">Aplicar</button>
     </form>
   );
 }
@@ -98,7 +98,7 @@ export default async function ClasificacionPage({
       <PageTitle title="Clasificacion" subtitle="Ranking actual, clasificacion diaria y clasificacion de una semana movil de 7 dias." />
       <nav className="mb-4 flex gap-2 overflow-x-auto">
         {tabs.map(([key, label]) => (
-          <Link key={key} href={tabHref(key, filters)} className={`rounded-md border px-3 py-2 text-sm font-semibold ${activeTab === key ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-700"}`}>{label}</Link>
+          <Link key={key} href={tabHref(key, filters)} className={`rounded-md border px-3 py-2 text-sm font-semibold ${activeTab === key ? "border-primary bg-primary text-[#FFFFFF]" : "border-slate-200 bg-white text-slate-700"}`}>{label}</Link>
         ))}
       </nav>
       {activeTab === "general" ? <PublicFiltersForm filters={filters} /> : <DateFilter filters={{ ...filters, tab: activeTab }} days={temporal?.availableDays ?? []} />}
