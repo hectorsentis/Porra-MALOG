@@ -1,0 +1,52 @@
+name = "porra_game_engine"
+description = "Migra y mantiene el motor de puntuación: resultados, grupos, bonus, ranking, snapshots, simulador y recalculo online."
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
+approval_policy = "never"
+
+developer_instructions = """
+Eres especialista en motor de juego.
+
+Objetivo:
+- Migrar el motor de puntuación del Excel a TypeScript si hace falta.
+- Permitir actualizar resultados online y recalcular puntos automáticamente.
+
+Crear o mantener:
+- `lib/game/rules.ts`
+- `lib/game/types.ts`
+- `lib/game/scoreMatch.ts`
+- `lib/game/scoreGroups.ts`
+- `lib/game/scoreBonus.ts`
+- `lib/game/ranking.ts`
+- `lib/game/simulator.ts`
+- `lib/game/potentialPoints.ts`
+- `lib/game/snapshots.ts`
+- `lib/game/recalculateAll.ts`
+
+El motor debe calcular:
+- Exact_OK
+- Diff_OK
+- Sign_OK
+- Qualified_OK
+- Cruce_Exacto_OK
+- Points_Result
+- Points_Qualified
+- Points_Cruce_Exacto
+- Points_Total
+- Points_Matches
+- Points_Groups
+- Points_Eliminatorias
+- Points_Bonus
+- Points_Total general
+- Pos
+- Delta_Pos
+- Delta_Points
+
+Simulador:
+- No sobrescribir datos oficiales.
+- Simular partido, campeón, bonus y ranking proyectado.
+
+Prioridad:
+- La clasificación calculada por el motor debe poder compararse contra `tbl_clasificacion_general` importada.
+- Reportar discrepancias.
+"""

@@ -1,0 +1,246 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { createAdminSession, destroyAdminSession, requireAdmin } from "@/lib/admin/auth";
+import { importExcelWorkbook, type ExcelImportPreview } from "@/lib/import/excel";
+import { prisma } from "@/lib/prisma";
+import { recalculateAll } from "@/lib/game/recalculateAll";
+
+export type ImportActionState = {
+  preview?: ExcelImportPreview;
+  error?: string;
+};
+
+export async function loginAction(formData: FormData) {
+  const username = String(formData.get("username") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const ok = await createAdminSession(username, password);
+  if (!ok) redirect("/admin?error=1");
+  redirect("/admin");
+}
+
+export async function logoutAction() {
+  await destroyAdminSession();
+  redirect("/admin");
+}
+
+export async function excelImportAction(_state: ImportActionState, formData: FormData): Promise<ImportActionState> {
+  await requireAdmin();
+  const file = formData.get("file");
+  const intent = String(formData.get("intent") ?? "preview");
+  if (!(file instanceof File) || file.size === 0) return { error: "Selecciona un Excel oficial." };
+  const buffer = Buffer.from(await file.arrayBuffer());
+  try {
+    const preview = await importExcelWorkbook(buffer, file.name, intent !== "import");
+    return { preview };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function saveResultAction(formData: FormData) {
+  await requireAdmin();
+  const matchId = String(formData.get("matchId") ?? "");
+  const intent = String(formData.get("intent") ?? "draft");
+  const homeGoalsRaw = String(formData.get("homeGoals") ?? "");
+  const awayGoalsRaw = String(formData.get("awayGoals") ?? "");
+  const homeGoals = homeGoalsRaw === "" ? null : Number(homeGoalsRaw);
+  const awayGoals = awayGoalsRaw === "" ? null : Number(awayGoalsRaw);
+  const qualifiedTeamId = String(formData.get("qualifiedTeamId") ?? "") || null;
+  const publishOfficial = intent === "official";
+  if (!matchId) redirect("/admin/resultados?error=1");
+  if (publishOfficial && (!Number.isInteger(homeGoals) || !Number.isInteger(awayGoals))) redirect("/admin/resultados?error=1");
+
+  const previous = await prisma.match.findUnique({ where: { matchId } });
+  if (!previous) redirect("/admin/resultados?error=1");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.match.update({
+      where: { matchId },
+      data: {
+        homeGoals,
+        awayGoals,
+        qualifiedTeamId,
+        finished: publishOfficial,
+        status: publishOfficial ? "OFFICIAL" : "DRAFT",
+        resultText: homeGoals == null || awayGoals == null ? null : `${homeGoals}-${awayGoals}`,
+        goalDiff: homeGoals == null || awayGoals == null ? null : homeGoals - awayGoals
+      }
+    });
+    await tx.matchResultEvent.create({
+      data: {
+        matchId,
+        eventType: publishOfficial ? "PUBLISH_OFFICIAL" : "SAVE_DRAFT",
+        previousStatus: previous.status,
+        nextStatus: publishOfficial ? "OFFICIAL" : "DRAFT",
+        previousHomeGoals: previous.homeGoals,
+        previousAwayGoals: previous.awayGoals,
+        nextHomeGoals: homeGoals,
+        nextAwayGoals: awayGoals,
+        qualifiedTeamId,
+        phase: previous.fase,
+        matchday: previous.jornadaId,
+        createdBy: "admin"
+      }
+    });
+    await tx.adminLog.create({
+      data: {
+        action: publishOfficial ? "RESULT_OFFICIAL" : "RESULT_DRAFT",
+        message: publishOfficial ? `Resultado oficial publicado: ${matchId}` : `Borrador guardado: ${matchId}`
+      }
+    });
+  });
+  if (publishOfficial) {
+    await recalculateAll(prisma, { trigger: "official-result", matchId, createdBy: "admin" });
+  }
+  redirect("/admin/resultados?saved=1");
+}
+
+export async function saveMatchAction(formData: FormData) {
+  await requireAdmin();
+  const matchId = String(formData.get("matchId") ?? "").trim();
+  const matchNoRaw = String(formData.get("matchNo") ?? "");
+  const fechaRaw = String(formData.get("fecha") ?? "");
+  const data = {
+    matchNo: matchNoRaw === "" ? null : Number(matchNoRaw),
+    fecha: fechaRaw ? new Date(fechaRaw) : null,
+    jornadaId: String(formData.get("jornadaId") ?? "") || null,
+    fase: String(formData.get("fase") ?? "") || null,
+    grupo: String(formData.get("grupo") ?? "") || null,
+    homeTeamId: String(formData.get("homeTeamId") ?? "") || null,
+    awayTeamId: String(formData.get("awayTeamId") ?? "") || null,
+    homeTeam: String(formData.get("homeTeam") ?? "") || null,
+    awayTeam: String(formData.get("awayTeam") ?? "") || null,
+    needsPens: formData.get("needsPens") === "on"
+  };
+  if (!matchId) redirect("/admin/partidos?error=1");
+  await prisma.match.upsert({
+    where: { matchId },
+    update: data,
+    create: { matchId, finished: false, status: "PENDING", ...data }
+  });
+  await prisma.adminLog.create({ data: { action: "MATCH_SAVED", message: `Partido guardado: ${matchId}` } });
+  redirect("/admin/partidos?saved=1");
+}
+
+export async function clearTestResultsAction() {
+  await requireAdmin();
+  await prisma.$transaction(async (tx) => {
+    await tx.match.updateMany({
+      data: {
+        homeGoals: null,
+        awayGoals: null,
+        homePens: null,
+        awayPens: null,
+        finished: false,
+        resultText: null,
+        realSign: null,
+        goalDiff: null,
+        winnerTeamId: null,
+        qualifiedTeamId: null,
+        overrideQualifiedTeamId: null,
+        status: "PENDING"
+      }
+    });
+    await tx.scoringMatch.deleteMany();
+    await tx.scoringGroup.deleteMany();
+    await tx.scoringBonus.deleteMany();
+    await tx.classification.updateMany({
+      data: {
+        pointsMatches: 0,
+        pointsGroups: 0,
+        pointsEliminatorias: 0,
+        pointsBonus: 0,
+        pointsTotal: 0,
+        exactScores: 0,
+        correctDiff: 0,
+        correctSigns: 0,
+        correctGroupQualified: 0,
+        correctGroupPositions: 0,
+        correctCruces: 0,
+        deltaPos: 0,
+        deltaPoints: 0
+      }
+    });
+    await tx.matchResultEvent.create({
+      data: {
+        eventType: "CLEAR_TEST_RESULTS",
+        nextStatus: "PENDING",
+        createdBy: "admin"
+      }
+    });
+    await tx.adminLog.create({ data: { action: "CLEAR_TEST_RESULTS", message: "Resultados de prueba limpiados para inicio de produccion." } });
+  });
+  await recalculateAll(prisma, { trigger: "production-reset", eventLabel: "Inicio de produccion", createdBy: "admin" });
+  redirect("/admin/resultados?cleared=1");
+}
+
+export async function saveBoteAction(formData: FormData) {
+  await requireAdmin();
+  await prisma.boteConfig.upsert({
+    where: { id: "default" },
+    update: {
+      amountPerParticipant: String(formData.get("amountPerParticipant") ?? "5"),
+      manualAdjustment: String(formData.get("manualAdjustment") ?? "0"),
+      firstPrizePct: Number(formData.get("firstPrizePct") ?? 60),
+      secondPrizePct: Number(formData.get("secondPrizePct") ?? 30),
+      thirdPrizePct: Number(formData.get("thirdPrizePct") ?? 10),
+      specialPrizeLabel: String(formData.get("specialPrizeLabel") ?? "") || null,
+      specialPrizeAmount: String(formData.get("specialPrizeAmount") ?? "0"),
+      rules: String(formData.get("rules") ?? "")
+    },
+    create: {
+      id: "default",
+      amountPerParticipant: String(formData.get("amountPerParticipant") ?? "5"),
+      manualAdjustment: String(formData.get("manualAdjustment") ?? "0"),
+      firstPrizePct: Number(formData.get("firstPrizePct") ?? 60),
+      secondPrizePct: Number(formData.get("secondPrizePct") ?? 30),
+      thirdPrizePct: Number(formData.get("thirdPrizePct") ?? 10),
+      specialPrizeLabel: String(formData.get("specialPrizeLabel") ?? "") || null,
+      specialPrizeAmount: String(formData.get("specialPrizeAmount") ?? "0"),
+      rules: String(formData.get("rules") ?? "Reparto del bote entre primer, segundo y tercer clasificado.")
+    }
+  });
+  await prisma.adminLog.create({ data: { action: "BOTE_UPDATED", message: "Configuracion del bote actualizada." } });
+  redirect("/admin/bote?saved=1");
+}
+
+export async function rollbackAction() {
+  await requireAdmin();
+  const latest = await prisma.rankingSnapshot.findFirst({
+    where: { isPublished: true },
+    orderBy: { createdAt: "desc" },
+    select: { id: true }
+  });
+  const snapshot = await prisma.rankingSnapshot.findFirst({
+    where: { isPublished: true, id: latest ? { not: latest.id } : undefined },
+    orderBy: { createdAt: "desc" },
+    include: { rows: { orderBy: { pos: "asc" } } }
+  });
+  if (!snapshot) redirect("/admin/rollback?empty=1");
+  await prisma.$transaction(async (tx) => {
+    if (latest) {
+      await tx.rankingSnapshot.update({ where: { id: latest.id }, data: { isPublished: false, isLatest: false } });
+    }
+    await tx.rankingSnapshot.update({ where: { id: snapshot.id }, data: { isPublished: true, isLatest: true } });
+    await tx.classification.deleteMany();
+    await tx.classification.createMany({
+      data: snapshot.rows.map((row) => ({
+        pos: row.pos,
+        participantId: row.participantId,
+        alias: row.alias,
+        departamento: row.departamento,
+        rango: row.rango,
+        pointsMatches: row.pointsMatches,
+        pointsGroups: row.pointsGroups,
+        pointsEliminatorias: row.pointsEliminatorias,
+        pointsBonus: row.pointsBonus,
+        pointsTotal: row.pointsTotal,
+        deltaPos: row.deltaPos,
+        deltaPoints: row.deltaPoints
+      }))
+    });
+    await tx.adminLog.create({ data: { action: "ROLLBACK", message: `Rollback a snapshot ${snapshot.id}` } });
+  });
+  redirect("/admin/rollback?ok=1");
+}

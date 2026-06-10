@@ -1,0 +1,443 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ImportRunStatus {
+  PENDING
+  DRY_RUN
+  SUCCESS
+  FAILED
+  ROLLED_BACK
+}
+
+enum MatchStatus {
+  PENDING
+  DRAFT
+  OFFICIAL
+  SIMULATED
+  VOID
+}
+
+model Participant {
+  participantId  String    @id @map("Participant_ID")
+  timestamp      DateTime? @map("Timestamp")
+  email          String?   @map("Email")
+  fullName       String?   @map("Nombre")
+  alias          String    @map("Alias")
+  departamento   String?   @map("Departamento")
+  rango          String?   @map("Rango")
+  estado         String?   @map("Estado")
+  pagado         String?   @map("Pagado")
+  source         String?   @map("Source")
+  pay            String?   @map("PAY")
+  templateSent   String?   @map("ENVIADO PLANTILLA")
+  resultReceived String?   @map("Resultado recibido")
+  slug           String    @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  matchBets      BetMatch[]
+  groupBets      BetGroupPosition[]
+  bonusBet       BetBonus?
+  scoringMatches ScoringMatch[]
+  classification Classification?
+
+  @@map("tbl_participantes")
+}
+
+model Team {
+  teamId         String  @id @map("Team_ID")
+  pais           String? @map("Pais")
+  seleccion      String  @map("Seleccion")
+  grupo          String? @map("Grupo")
+  ordenGrupo     Int?    @map("Orden_Grupo")
+  confederacion  String? @map("Confederacion")
+  tieBreakerRank Int?    @map("TieBreaker_Rank")
+  fifaRank       Int?    @map("FIFA_Rank")
+  comentarios    String? @map("Comentarios")
+  flag           String? @map("Flag")
+
+  @@map("tbl_teams")
+}
+
+model Match {
+  matchId                 String      @id @map("Match_ID")
+  matchNo                 Int?        @map("Match_No")
+  fecha                   DateTime?   @map("Fecha")
+  hora                    String?     @map("Hora")
+  jornadaId               String?     @map("Jornada_ID")
+  fase                    String?     @map("Fase")
+  grupo                   String?     @map("Grupo")
+  homeSlot                String?     @map("Home_Slot")
+  awaySlot                String?     @map("Away_Slot")
+  homeTeamIdManual        String?     @map("Home_Team_ID_Manual")
+  awayTeamIdManual        String?     @map("Away_Team_ID_Manual")
+  homeTeamId              String?     @map("Home_Team_ID")
+  awayTeamId              String?     @map("Away_Team_ID")
+  homeTeam                String?     @map("Home_Team")
+  awayTeam                String?     @map("Away_Team")
+  homeGoals               Int?        @map("Home_Goals")
+  awayGoals               Int?        @map("Away_Goals")
+  homePens                Int?        @map("Home_Pens")
+  awayPens                Int?        @map("Away_Pens")
+  finished                Boolean     @default(false) @map("Finished")
+  resultText              String?     @map("Result_Text")
+  realSign                String?     @map("Signo_Real")
+  goalDiff                Int?        @map("Goal_Diff")
+  winnerTeamId            String?     @map("Winner_Team_ID")
+  qualifiedTeamId         String?     @map("Qualified_Team_ID")
+  overrideQualifiedTeamId String?     @map("Override_Qualified_Team_ID")
+  needsPens               Boolean     @default(false) @map("Needs_Pens")
+  statusCheck             String?     @map("Status_Check")
+  bettingDeadline         DateTime?   @map("Deadline_Apuestas")
+  notas                   String?     @map("Notas")
+  status                  MatchStatus @default(PENDING)
+  updatedAt               DateTime    @updatedAt
+
+  bets              BetMatch[]
+  scoring           ScoringMatch[]
+  resultEvents      MatchResultEvent[]
+  recalculationRuns RecalculationRun[]
+
+  @@map("tbl_matches")
+}
+
+model BetMatch {
+  id                  String  @id @default(cuid())
+  sourceName          String? @map("Source.Name")
+  email               String? @map("Email")
+  matchId             String  @map("Match_ID")
+  predHomeTeamId      String? @map("Pred_Home_Team_ID")
+  predAwayTeamId      String? @map("Pred_Away_Team_ID")
+  predHomeGoals       Int?    @map("Pred_Home_Goals")
+  predAwayGoals       Int?    @map("Pred_Away_Goals")
+  predQualifiedTeamId String? @map("Pred_Qualified_Team_ID")
+  betId               String? @unique @map("Bet.ID")
+  participantId       String  @map("Participant_ID")
+  fase                String? @map("FASE")
+  predSign            String? @map("Pred_Sign")
+  predGoalDiff        Int?    @map("Pred_Goal_Diff")
+
+  participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
+  match       Match       @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
+
+  @@index([participantId])
+  @@index([matchId])
+  @@map("tbl_bets_matches")
+}
+
+model BetGroupPosition {
+  id            String  @id @default(cuid())
+  sourceName    String? @map("Source.Name")
+  email         String? @map("Email")
+  grupo         String  @map("Grupo")
+  predPos       Int     @map("Pred_Pos")
+  predTeamId    String? @map("Pred_Team_ID")
+  groupBetId    String? @unique @map("Group_Bet_ID")
+  participantId String  @map("Participant_ID")
+  valid         Boolean @default(true) @map("Valid")
+
+  participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
+
+  @@index([participantId])
+  @@map("tbl_bets_group_positions")
+}
+
+model BetBonus {
+  id                      String    @id @default(cuid())
+  participantId           String    @unique @map("Participant_ID")
+  alias                   String?   @map("Alias")
+  email                   String?   @map("Email")
+  timestamp               DateTime? @map("Timestamp")
+  campeon                 String?   @map("Campeon")
+  subcampeon              String?   @map("Subcampeon")
+  semifinalista1          String?   @map("Semifinalista_1")
+  semifinalista2          String?   @map("Semifinalista_2")
+  semifinalista3          String?   @map("Semifinalista_3")
+  semifinalista4          String?   @map("Semifinalista_4")
+  maximoGoleador          String?   @map("Maximo_Goleador")
+  seleccionMasGoleadora   String?   @map("Seleccion_Mas_Goleadora")
+  seleccionMasGoleada     String?   @map("Seleccion_Mas_Goleada")
+  seleccionMenosGoleadora String?   @map("Seleccion_Menos_Goleadora")
+  seleccionMenosGoleada   String?   @map("Seleccion_Menos_Goleada")
+  equipoRevelacion        String?   @map("Equipo_Revelacion")
+  equipoDecepcion         String?   @map("Equipo_Decepcion")
+  totalGolesTorneo        Int?      @map("Total_Goles_Torneo")
+  valid                   Boolean   @default(true) @map("Valid")
+  source                  String?   @map("Source")
+
+  participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
+
+  @@map("tbl_bets_bonus")
+}
+
+model ScoringMatch {
+  id                String   @id @default(cuid())
+  betId             String?  @map("Bet.ID")
+  participantId     String   @map("Participant_ID")
+  matchId           String   @map("Match_ID")
+  fase              String?  @map("FASE")
+  exactOk           Boolean  @default(false) @map("Exact_OK")
+  diffOk            Boolean  @default(false) @map("Diff_OK")
+  signOk            Boolean  @default(false) @map("Sign_OK")
+  qualifiedOk       Boolean  @default(false) @map("Qualified_OK")
+  cruceExactoOk     Boolean  @default(false) @map("Cruce_Exacto_OK")
+  spainMatch        Boolean  @default(false) @map("Spain_Match")
+  multiplier        Int      @default(1) @map("Multiplier")
+  pointsResult      Int      @default(0) @map("Points_Result")
+  pointsQualified   Int      @default(0) @map("Points_Qualified")
+  pointsCruceExacto Int      @default(0) @map("Points_Cruce_Exacto")
+  pointsTotal       Int      @default(0) @map("Points_Total")
+  date              DateTime @default(now()) @map("Date")
+
+  match       Match       @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
+
+  @@index([participantId])
+  @@index([matchId])
+  @@map("tbl_scoring_matches")
+}
+
+model ScoringGroup {
+  id              String   @id @default(cuid())
+  groupBetId      String?  @map("Group_Bet_ID")
+  email           String?  @map("Email")
+  participantId   String   @map("Participant_ID")
+  valid           Boolean  @default(true) @map("Valid")
+  grupo           String   @map("Grupo")
+  predPos         Int      @map("Pred_Pos")
+  predTeamId      String?  @map("Pred_Team_ID")
+  realPos         Int?     @map("Real_Pos")
+  realStatus      String?  @map("Real_Status")
+  qualifiedOk     Boolean  @default(false) @map("Qualified_OK")
+  exactPositionOk Boolean  @default(false) @map("Exact_Position_OK")
+  pointsQualified Int      @default(0) @map("Points_Qualified")
+  pointsPosition  Int      @default(0) @map("Points_Position")
+  pointsTotal     Int      @default(0) @map("Points_Total")
+  date            DateTime @default(now()) @map("Date")
+
+  @@index([participantId])
+  @@map("tbl_scoring_groups")
+}
+
+model ScoringBonus {
+  id                        String    @id @default(cuid())
+  participantId             String    @unique @map("Participant_ID")
+  alias                     String?   @map("Alias")
+  email                     String?   @map("Email")
+  timestamp                 DateTime? @map("Timestamp")
+  campeonOk                 Boolean   @default(false) @map("Campeon_OK")
+  subcampeonOk              Boolean   @default(false) @map("Subcampeon_OK")
+  semifinalistasOk          Int       @default(0) @map("Semifinalistas_OK")
+  maximoGoleadorOk          Boolean   @default(false) @map("Maximo_Goleador_OK")
+  seleccionMasGoleadoraOk   Boolean   @default(false) @map("Seleccion_Mas_Goleadora_OK")
+  seleccionMasGoleadaOk     Boolean   @default(false) @map("Seleccion_Mas_Goleada_OK")
+  seleccionMenosGoleadoraOk Boolean   @default(false) @map("Seleccion_Menos_Goleadora_OK")
+  seleccionMenosGoleadaOk   Boolean   @default(false) @map("Seleccion_Menos_Goleada_OK")
+  equipoRevelacionOk        Boolean   @default(false) @map("Equipo_Revelacion_OK")
+  equipoDecepcionOk         Boolean   @default(false) @map("Equipo_Decepcion_OK")
+  totalGolesTorneoOk        Boolean   @default(false) @map("Total_Goles_Torneo_OK")
+  pointsTotal               Int       @default(0) @map("Points_Total")
+
+  @@map("tbl_scoring_bonus")
+}
+
+model Classification {
+  id                    String   @id @default(cuid())
+  pos                   Int      @map("Pos")
+  participantId         String   @unique @map("Participant_ID")
+  alias                 String   @map("Alias")
+  departamento          String?  @map("Departamento")
+  rango                 String?  @map("Rango")
+  pointsMatches         Int      @default(0) @map("Points_Matches")
+  pointsGroups          Int      @default(0) @map("Points_Groups")
+  pointsEliminatorias   Int      @default(0) @map("Points_Eliminatorias")
+  pointsBonus           Int      @default(0) @map("Points_Bonus")
+  pointsTotal           Int      @default(0) @map("Points_Total")
+  exactScores           Int      @default(0) @map("Exact_Scores")
+  correctDiff           Int      @default(0) @map("Correct_Diff")
+  correctSigns          Int      @default(0) @map("Correct_Signs")
+  correctGroupQualified Int      @default(0) @map("Correct_Group_Qualified")
+  correctGroupPositions Int      @default(0) @map("Correct_Group_Positions")
+  correctCruces         Int      @default(0) @map("Correct_Cruces")
+  pointsTotalFecha      Int      @default(0) @map("Points_Total_Fecha")
+  posFecha              Int?     @map("Pos_Fecha")
+  deltaPos              Int      @default(0) @map("Delta_Pos")
+  deltaPoints           Int      @default(0) @map("Delta_Points")
+  updatedAt             DateTime @updatedAt
+
+  participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
+
+  @@index([pos])
+  @@map("tbl_clasificacion_general")
+}
+
+model GameRule {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Int
+  active      Boolean  @default(true)
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model RankingSnapshot {
+  id          String                     @id @default(cuid())
+  label       String
+  createdAt   DateTime                   @default(now())
+  isPublished Boolean                    @default(true)
+  isLatest    Boolean                    @default(false)
+  source      String
+  eventLabel  String?
+  matchId     String?
+  phase       String?
+  matchday    String?
+  rows        RankingSnapshotRow[]
+  scoreRows   ParticipantScoreSnapshot[]
+}
+
+model RankingSnapshotRow {
+  id                  String   @id @default(cuid())
+  snapshotId          String
+  participantId       String
+  alias               String
+  departamento        String?
+  rango               String?
+  pos                 Int
+  previousPos         Int?
+  deltaPos            Int
+  deltaPoints         Int
+  pointsMatches       Int
+  pointsGroups        Int
+  pointsEliminatorias Int
+  pointsBonus         Int
+  pointsTotal         Int
+  pointsGainedThisRun Int      @default(0)
+  eventLabel          String?
+  phase               String?
+  matchday            String?
+  matchId             String?
+  createdAt           DateTime @default(now())
+
+  snapshot RankingSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId, pos])
+  @@index([participantId, createdAt])
+}
+
+model ParticipantScoreSnapshot {
+  id                  String   @id @default(cuid())
+  snapshotId          String
+  participantId       String
+  alias               String
+  departamento        String?
+  rango               String?
+  pos                 Int
+  previousPos         Int?
+  deltaPos            Int
+  deltaPoints         Int
+  pointsMatches       Int
+  pointsGroups        Int
+  pointsEliminatorias Int
+  pointsBonus         Int
+  pointsTotal         Int
+  pointsGainedThisRun Int      @default(0)
+  eventLabel          String?
+  phase               String?
+  matchday            String?
+  matchId             String?
+  createdAt           DateTime @default(now())
+
+  snapshot RankingSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([participantId, createdAt])
+  @@index([snapshotId, pos])
+}
+
+model ImportRun {
+  id            String          @id @default(cuid())
+  filename      String
+  status        ImportRunStatus @default(PENDING)
+  dryRun        Boolean         @default(false)
+  startedAt     DateTime        @default(now())
+  finishedAt    DateTime?
+  rowsRead      Int             @default(0)
+  rowsImported  Int             @default(0)
+  warnings      Json            @default("[]")
+  errors        Json            @default("[]")
+  rollbackToken String?
+}
+
+model AdminLog {
+  id        String   @id @default(cuid())
+  action    String
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model RecalculationRun {
+  id                   String    @id @default(cuid())
+  trigger              String    @default("manual")
+  matchId              String?
+  phase                String?
+  matchday             String?
+  status               String
+  warnings             Json      @default("[]")
+  errors               Json      @default("[]")
+  startedAt            DateTime  @default(now())
+  finishedAt           DateTime?
+  createdBy            String?
+  affectedParticipants Int       @default(0)
+  message              String?
+
+  match Match? @relation(fields: [matchId], references: [matchId], onDelete: SetNull)
+}
+
+model MatchResultEvent {
+  id                String       @id @default(cuid())
+  matchId           String?
+  eventType         String
+  previousStatus    MatchStatus?
+  nextStatus        MatchStatus
+  previousHomeGoals Int?
+  previousAwayGoals Int?
+  nextHomeGoals     Int?
+  nextAwayGoals     Int?
+  qualifiedTeamId   String?
+  phase             String?
+  matchday          String?
+  createdBy         String?
+  createdAt         DateTime     @default(now())
+
+  match Match? @relation(fields: [matchId], references: [matchId], onDelete: SetNull)
+
+  @@index([matchId, createdAt])
+}
+
+model SimulationRun {
+  id        String   @id @default(cuid())
+  label     String?
+  payload   Json
+  result    Json
+  createdAt DateTime @default(now())
+}
+
+model BoteConfig {
+  id                   String   @id @default("default")
+  amountPerParticipant Decimal  @default(5.00) @db.Decimal(10, 2)
+  manualAdjustment     Decimal  @default(0.00) @db.Decimal(10, 2)
+  firstPrizePct        Int      @default(60)
+  secondPrizePct       Int      @default(30)
+  thirdPrizePct        Int      @default(10)
+  specialPrizeLabel    String?
+  specialPrizeAmount   Decimal  @default(0.00) @db.Decimal(10, 2)
+  rules                String   @default("Reparto del bote entre primer, segundo y tercer clasificado.")
+  updatedAt            DateTime @updatedAt
+}

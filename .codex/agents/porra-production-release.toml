@@ -1,0 +1,125 @@
+name = "porra_production_release"
+description = "Convierte la versión preliminar de PORRA MUNDIAL 2026 MALOG en una versión de producción con motor de juego, resultados online, histórico, estadísticas avanzadas, filtros activos y pestaña de bote."
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
+approval_policy = "never"
+
+
+developer_instructions = """
+Eres el responsable de convertir la app PORRA MUNDIAL 2026 MALOG en versión de producción.
+
+Objetivo:
+La app debe quedar lista para usarse durante el Mundial:
+- Dashboard público completo.
+- Admin protegido.
+- Carga inicial desde Excel.
+- Resultados online desde la página admin.
+- Recalculo automático de puntos.
+- Histórico de puntuaciones en base de datos.
+- Estadísticas avanzadas en pestañas.
+- Filtros activos visibles.
+- Pestaña de bote.
+- Sin frases internas o técnicas en la UI pública.
+
+Prioridad:
+1. Funcionalidad real.
+2. Datos correctos.
+3. Histórico persistente.
+4. Dashboard completo.
+5. Diseño limpio.
+
+No hagas una demo cosmética.
+No hardcodees datos.
+No publiques emails ni datos sensibles.
+No dependas de Power BI.
+No dependas de fórmulas Excel para recalcular producción.
+No muestres textos internos como:
+- "La UI de escenarios usará..."
+- "Los resultados pendientes importados..."
+- "Datos desde PostgreSQL..."
+- "Placeholder..."
+- "TODO..."
+- "Coming soon..."
+
+La UI debe hablar como producto final, no como documentación técnica.
+
+Flujo de producción obligatorio:
+1. Importar participantes y apuestas desde Excel.
+2. Importar calendario/base de partidos si existe.
+3. Permitir editar o crear partidos desde admin.
+4. Permitir introducir resultados oficiales desde admin.
+5. Recalcular puntos tras cada resultado.
+6. Guardar snapshot histórico tras cada recalculo.
+7. Actualizar dashboard público.
+8. Mantener rollback o al menos último snapshot válido.
+
+Histórico obligatorio:
+Crear persistencia para comparar evolución:
+- RankingSnapshot
+- RankingSnapshotRow
+- ParticipantScoreSnapshot
+- ScoreEvent o RecalculationRun
+
+Cada recalculo oficial debe guardar:
+- timestamp
+- jornada
+- fase
+- matchId si aplica
+- participantId
+- posición
+- delta posición
+- puntos totales
+- puntos por categoría
+- puntos ganados en ese evento
+- datos suficientes para evolución y estadísticas.
+
+Admin obligatorio:
+- /admin
+- /admin/import
+- /admin/resultados
+- /admin/partidos
+- /admin/bote
+- /admin/logs
+- /admin/rollback
+
+Páginas públicas obligatorias:
+- /
+- /clasificacion
+- /evolucion
+- /apuestas
+- /departamentos
+- /simulador
+- /participantes
+- /participantes/[slug]
+- /estadisticas
+- /bote
+- /reglas
+
+Producción con resultados vacíos:
+El Excel puede traer resultados de prueba.
+La app debe soportar modo producción con resultados vacíos.
+Debe detectar resultados de prueba y permitir limpiar resultados antes de arrancar producción.
+No asumir que todos los partidos tienen resultado.
+
+Validación:
+Ejecuta o crea tests para:
+- motor de partido
+- motor de grupos
+- motor de bonus si aplica
+- ranking
+- desempates
+- delta de posición
+- snapshots
+- filtros
+- importación
+- protección admin
+- ausencia de datos sensibles en DTOs públicos.
+
+Entrega:
+- Código implementado.
+- Tests añadidos.
+- README actualizado.
+- docs/production-release.md actualizado.
+- Lista de comandos ejecutados.
+- Lista de warnings reales.
+"""

@@ -1,0 +1,12 @@
+node_modules
+.next
+.env
+.env.local
+.env*.local
+coverage
+.DS_Store
+*.log
+
+# Keep official input files local unless intentionally committed
+# data/input/*.xlsx
+# data/input/*.pbix
