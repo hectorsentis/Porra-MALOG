@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { BarChart3, CalendarClock, Gauge, Shield, Trophy, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -7,6 +7,7 @@ const nav = [
   ["/clasificacion", "Clasificacion"],
   ["/evolucion", "Evolucion"],
   ["/apuestas", "Apuestas"],
+  ["/partidos", "Partidos"],
   ["/departamentos", "Departamentos"],
   ["/simulador", "Simulador"],
   ["/participantes", "Participantes"],
@@ -24,7 +25,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             <Shield className="h-8 w-8 shrink-0 text-air-gold" aria-hidden />
             <div className="min-w-0">
               <p className="truncate text-base font-bold">PORRA MUNDIAL 2026 MALOG</p>
-              <p className="text-xs text-blue-100">Ejercito del Aire · Dashboard online</p>
+              <p className="text-xs text-blue-100">Ejercito del Aire - seguimiento oficial</p>
             </div>
           </Link>
           <Badge className="hidden border-air-gold bg-slate-900 text-air-gold sm:inline-flex">

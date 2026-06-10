@@ -9,6 +9,9 @@ export type PublicFilters = {
   jornada?: string;
   grupo?: string;
   equipo?: string;
+  estado?: string;
+  fecha?: string;
+  partido?: string;
   tab?: string;
 };
 
@@ -35,6 +38,9 @@ export function parsePublicFilters(searchParams: Record<string, string | string[
     jornada: read("jornada") || undefined,
     grupo: read("grupo") || undefined,
     equipo: read("equipo") || undefined,
+    estado: read("estado") || undefined,
+    fecha: read("fecha") || undefined,
+    partido: read("partido") || undefined,
     tab: read("tab") || "resumen"
   };
 }

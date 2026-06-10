@@ -1,4 +1,4 @@
-import { PageTitle } from "@/components/PageTitle";
+﻿import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { defaultRules } from "@/lib/game/rules";
@@ -6,7 +6,7 @@ import { defaultRules } from "@/lib/game/rules";
 export default function ReglasPage() {
   return (
     <PublicShell>
-      <PageTitle title="Reglas" subtitle="Motor de puntuacion migrado a TypeScript." />
+      <PageTitle title="Reglas" subtitle="Puntuacion oficial aplicada al recalculo de la porra." />
       <Card>
         <CardHeader><CardTitle>Puntuacion base</CardTitle></CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">

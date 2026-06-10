@@ -6,8 +6,8 @@ import { getPublicBote } from "@/lib/public/bote";
 
 export const dynamic = "force-dynamic";
 
-function Money({ value }: { value: number }) {
-  return <>{value.toFixed(2)} EUR</>;
+function Money({ value, currency }: { value: number; currency: string }) {
+  return <>{value.toFixed(2)} {currency}</>;
 }
 
 export default async function BotePage() {
@@ -24,15 +24,17 @@ export default async function BotePage() {
           </CardContent>
         </Card>
         <div className="grid gap-3">
-          <Card><CardContent><p className="text-xs uppercase text-slate-500">Bote total</p><p className="text-3xl font-bold text-primary"><Money value={bote.total} /></p></CardContent></Card>
-          <Card><CardContent><p className="text-xs uppercase text-slate-500">Participantes incluidos</p><p className="text-3xl font-bold">{bote.includedParticipants}</p></CardContent></Card>
-          <Card><CardContent><p className="text-xs uppercase text-slate-500">Aportacion base</p><p className="text-3xl font-bold"><Money value={bote.amountPerParticipant} /></p></CardContent></Card>
+          <Card><CardContent><p className="text-xs uppercase text-slate-500">Bote total</p><p className="text-3xl font-bold text-primary"><Money value={bote.total} currency={bote.currency} /></p></CardContent></Card>
+          {bote.prizes.map((prize) => (
+            <Card key={prize.name}><CardContent><p className="text-xs uppercase text-slate-500">{prize.name}</p><p className="text-3xl font-bold"><Money value={prize.value} currency={bote.currency} /></p></CardContent></Card>
+          ))}
         </div>
       </section>
       <Card className="mt-4">
         <CardHeader><CardTitle>Reglas del reparto</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm leading-6 text-slate-700">{bote.rules}</p>
+          {bote.balance !== 0 ? <p className="mt-3 text-sm font-semibold text-air-gold">La suma de premios difiere del bote configurado en {bote.balance.toFixed(2)} {bote.currency}.</p> : null}
         </CardContent>
       </Card>
     </PublicShell>

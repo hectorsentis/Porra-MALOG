@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { calculateRanking } from "@/lib/game/ranking";
 import { defaultRules } from "@/lib/game/rules";
 import { scoreBonus } from "@/lib/game/scoreBonus";
@@ -6,6 +6,7 @@ import { scoreGroupBet } from "@/lib/game/scoreGroups";
 import { scoreMatch } from "@/lib/game/scoreMatch";
 import { simulateRanking } from "@/lib/game/simulator";
 import { isOfficialMatchForScoring } from "@/lib/game/recalculateAll";
+import { predictionSign, summarizePredictionDistribution } from "@/lib/public/matchStats";
 
 describe("scoreMatch", () => {
   it("scores exact result", () => {
@@ -250,5 +251,30 @@ describe("official result publication", () => {
         awayGoals: 0
       })
     ).toBe(true);
+  });
+});
+
+describe("public match viewer stats", () => {
+  it("calculates prediction signs for 1-X-2 distributions", () => {
+    expect(predictionSign(2, 0)).toBe("1");
+    expect(predictionSign(1, 1)).toBe("X");
+    expect(predictionSign(0, 2)).toBe("2");
+    expect(predictionSign(null, 2)).toBe("Pendiente");
+  });
+
+  it("summarizes most predicted result and distribution", () => {
+    const summary = summarizePredictionDistribution([
+      { predHomeGoals: 2, predAwayGoals: 1 },
+      { predHomeGoals: 2, predAwayGoals: 1 },
+      { predHomeGoals: 1, predAwayGoals: 1 },
+      { predHomeGoals: null, predAwayGoals: null }
+    ]);
+
+    expect(summary.signs.one).toBe(2);
+    expect(summary.signs.draw).toBe(1);
+    expect(summary.signs.pending).toBe(1);
+    expect(summary.mostPredictedResult).toBe("2-1");
+    expect(summary.mostPredictedPct).toBe(50);
+    expect(summary.averageGoals).toBe(2.67);
   });
 });

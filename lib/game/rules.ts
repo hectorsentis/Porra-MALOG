@@ -1,4 +1,4 @@
-export const defaultRules = {
+﻿export const defaultRules = {
   exactScore: 10,
   correctGoalDiff: 5,
   correctSign: 2,
@@ -23,4 +23,5 @@ export const defaultRules = {
 
 export type GameRules = typeof defaultRules;
 
-export const spainTeamIds = new Set(["ESP", "ES", "SPAIN", "ESPANA", "ESPAÑA"]);
+export const spainTeamIds = new Set(["ESP", "ES", "SPAIN", "ESPANA", "ESPANA"]);
+

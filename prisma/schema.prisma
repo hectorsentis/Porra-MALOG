@@ -484,6 +484,14 @@ model BoteConfig {
   thirdPrizePct        Int      @default(10)
   specialPrizeLabel    String?
   specialPrizeAmount   Decimal  @default(0.00) @db.Decimal(10, 2)
-  rules                String   @default("Reparto del bote entre primer, segundo y tercer clasificado.")
+  totalAmount          Decimal  @default(0.00) @db.Decimal(10, 2)
+  firstPrize           Decimal  @default(0.00) @db.Decimal(10, 2)
+  secondPrize          Decimal  @default(0.00) @db.Decimal(10, 2)
+  thirdPrize           Decimal  @default(0.00) @db.Decimal(10, 2)
+  consolationPrize     Decimal  @default(0.00) @db.Decimal(10, 2)
+  currency             String   @default("EUR")
+  notes                String?
+  updatedBy            String?
+  rules                String   @default("Reparto del bote entre primer, segundo, tercer clasificado y premio de consolacion.")
   updatedAt            DateTime @updatedAt
 }

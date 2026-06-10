@@ -454,17 +454,48 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       await tx.betMatch.deleteMany();
       await tx.betGroupPosition.deleteMany();
       await tx.betBonus.deleteMany();
-      await tx.participant.deleteMany();
-      await tx.match.deleteMany();
-      await tx.team.deleteMany();
-      if (parsed.participants.length > 0) {
-        await tx.participant.createMany({ data: parsed.participants, skipDuplicates: true });
+      for (const participant of parsed.participants) {
+        const { participantId, ...participantData } = participant;
+        await tx.participant.upsert({
+          where: { participantId },
+          update: participantData,
+          create: participant
+        });
       }
-      if (parsed.teams.length > 0) {
-        await tx.team.createMany({ data: parsed.teams, skipDuplicates: true });
+      for (const team of parsed.teams) {
+        const { teamId, ...teamData } = team;
+        await tx.team.upsert({
+          where: { teamId },
+          update: teamData,
+          create: team
+        });
       }
-      if (parsed.matches.length > 0) {
-        await tx.match.createMany({ data: parsed.matches, skipDuplicates: true });
+      for (const match of parsed.matches) {
+        const matchData = {
+          matchNo: match.matchNo,
+          fecha: match.fecha,
+          hora: match.hora,
+          jornadaId: match.jornadaId,
+          fase: match.fase,
+          grupo: match.grupo,
+          homeSlot: match.homeSlot,
+          awaySlot: match.awaySlot,
+          homeTeamIdManual: match.homeTeamIdManual,
+          awayTeamIdManual: match.awayTeamIdManual,
+          homeTeamId: match.homeTeamId,
+          awayTeamId: match.awayTeamId,
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+          needsPens: match.needsPens,
+          statusCheck: match.statusCheck,
+          bettingDeadline: match.bettingDeadline,
+          notas: match.notas
+        };
+        await tx.match.upsert({
+          where: { matchId: match.matchId },
+          update: matchData,
+          create: match
+        });
       }
       const participantIds = new Set(parsed.participants.map((participant) => participant.participantId));
       const matchIds = new Set(parsed.matches.map((match) => match.matchId));

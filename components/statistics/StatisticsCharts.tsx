@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import type { ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -19,6 +20,31 @@ import {
 } from "recharts";
 
 const colors = ["#1E3A8A", "#3B82F6", "#D4AF37", "#16A34A", "#DC2626"];
+const labelMap: Record<string, string> = {
+  pointsTotal: "Puntos",
+  gapPrevious: "Distancia anterior",
+  gapLeader: "Distancia lider",
+  exactScores: "Exactos",
+  correctSigns: "Signos",
+  correctDiff: "Diferencias",
+  pointsGainedThisRun: "Puntos evento",
+  deltaPos: "Movimiento",
+  pointsStd: "Dispersion puntos",
+  averageMovement: "Movimiento medio",
+  partidos: "Partidos",
+  grupos: "Grupos",
+  eliminatorias: "Eliminatorias",
+  bonus: "Bonus",
+  value: "Total",
+  rarity: "Rareza",
+  points: "Puntos",
+  pos: "Posicion"
+};
+function tooltipLabel(name: unknown) {
+  const key = String(name);
+  return labelMap[key] ?? key;
+}
+const tooltipFormatter = (value: unknown, name: unknown): [ReactNode, string] => [value as ReactNode, tooltipLabel(name)];
 
 type ChartRow = Record<string, string | number | null | undefined>;
 
@@ -29,7 +55,7 @@ export function DistributionChart({ data }: { data: ChartRow[] }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="alias" tick={{ fontSize: 11 }} />
         <YAxis />
-        <Tooltip />
+        <Tooltip formatter={tooltipFormatter} />
         <Bar dataKey="pointsTotal" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -43,7 +69,7 @@ export function PointCompositionChart({ data }: { data: ChartRow[] }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="alias" tick={{ fontSize: 11 }} />
         <YAxis />
-        <Tooltip />
+        <Tooltip formatter={tooltipFormatter} />
         <Bar dataKey="partidos" stackId="points" fill="#1E3A8A" />
         <Bar dataKey="grupos" stackId="points" fill="#3B82F6" />
         <Bar dataKey="eliminatorias" stackId="points" fill="#D4AF37" />
@@ -60,7 +86,7 @@ export function RankingDensityChart({ data }: { data: ChartRow[] }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="alias" tick={{ fontSize: 11 }} />
         <YAxis />
-        <Tooltip />
+        <Tooltip formatter={tooltipFormatter} />
         <Bar dataKey="gapPrevious" fill="#3B82F6" />
         <Line dataKey="gapLeader" stroke="#D4AF37" strokeWidth={2} />
       </ComposedChart>
@@ -75,7 +101,7 @@ export function AccuracyChart({ data }: { data: ChartRow[] }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="alias" tick={{ fontSize: 11 }} />
         <YAxis />
-        <Tooltip />
+        <Tooltip formatter={tooltipFormatter} />
         <Bar dataKey="exactScores" fill="#1E3A8A" />
         <Bar dataKey="correctSigns" fill="#3B82F6" />
         <Bar dataKey="correctDiff" fill="#D4AF37" />
@@ -91,7 +117,7 @@ export function EvolutionLineChart({ data }: { data: ChartRow[] }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="eventLabel" tick={{ fontSize: 11 }} />
         <YAxis />
-        <Tooltip />
+        <Tooltip formatter={tooltipFormatter} />
         <Line dataKey="pointsTotal" stroke="#1E3A8A" strokeWidth={2} dot={false} />
         <Line dataKey="pos" stroke="#D4AF37" strokeWidth={2} dot={false} />
       </LineChart>
@@ -106,7 +132,7 @@ export function SimpleBarChart({ data, nameKey = "name", valueKey = "value" }: {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey={nameKey} tick={{ fontSize: 11 }} />
         <YAxis />
-        <Tooltip />
+        <Tooltip formatter={tooltipFormatter} />
         <Bar dataKey={valueKey} fill="#1E3A8A" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -120,7 +146,7 @@ export function RarityScatterChart({ data }: { data: ChartRow[] }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="rarity" name="Rareza" />
         <YAxis dataKey="points" name="Puntos" />
-        <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+        <Tooltip cursor={{ strokeDasharray: "3 3" }} formatter={tooltipFormatter} />
         <Scatter data={data} fill="#D4AF37" />
       </ScatterChart>
     </ResponsiveContainer>
@@ -136,8 +162,9 @@ export function PrizePieChart({ data }: { data: Array<{ name: string; value: num
             <Cell key={entry.name} fill={colors[index % colors.length]} />
           ))}
         </Pie>
-        <Tooltip />
+        <Tooltip formatter={tooltipFormatter} />
       </PieChart>
     </ResponsiveContainer>
   );
 }
+

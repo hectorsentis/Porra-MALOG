@@ -86,4 +86,4 @@ Conteos importados:
 - Apuestas bonus: 47.
 - Clasificacion: 47.
 
-Nota: `NODE_ENV` no debe definirse en `.env`; Next lo gestiona automaticamente. En este workspace no existe `data/input/Porra_mundial2026.xlsx`; el script usa `Porra_mundial2026_test.xlsx` y emite aviso. Para produccion, colocar el Excel oficial con el nombre esperado.
+Nota: `NODE_ENV` no debe definirse en `.env`; Next lo gestiona automaticamente. La importacion usa `data/input/Porra_mundial2026.xlsx` cuando existe; `Porra_mundial2026_test.xlsx` queda solo como respaldo local.

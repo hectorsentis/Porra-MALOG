@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+﻿import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { PageTitle } from "@/components/PageTitle";
 import { CompositionChart, DepartmentChart, TopTenChart } from "@/components/dashboard/DashboardCharts";
@@ -41,7 +41,7 @@ export default async function HomePage({
         <Kpi label="Puntos repartidos" value={data.distributedPoints} />
         <Kpi label="Partidos computados" value={data.computedMatches} />
         <Kpi label="Ultima actualizacion" value={data.lastUpdatedAt ? new Date(data.lastUpdatedAt).toLocaleString("es-ES") : "Pendiente"} />
-        <Kpi label="Estado" value={data.ranking.length ? "Publicado" : "Esperando import"} />
+        <Kpi label="Estado" value={data.ranking.length ? "Publicado" : "Pendiente de apertura"} />
       </section>
 
       <section className="dashboard-grid mt-4">

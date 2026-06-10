@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import type { PublicFilters } from "./filters";
 import { toPublicClassificationRow } from "./mappers";
 
@@ -184,8 +184,12 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     };
   });
 
-  const totalBoteParticipants = await prisma.participant.count({ where: { OR: [{ pay: { equals: "SI", mode: "insensitive" } }, { pagado: { not: null } }] } });
-  const totalBote = totalBoteParticipants * Number(boteConfig?.amountPerParticipant ?? 5) + Number(boteConfig?.manualAdjustment ?? 0);
+  const totalBote = Number(boteConfig?.totalAmount ?? 0);
+  const firstPrize = Number(boteConfig?.firstPrize ?? 0);
+  const secondPrize = Number(boteConfig?.secondPrize ?? 0);
+  const thirdPrize = Number(boteConfig?.thirdPrize ?? 0);
+  const consolationPrize = Number(boteConfig?.consolationPrize ?? 0);
+  const prizeSum = firstPrize + secondPrize + thirdPrize + consolationPrize;
 
   return {
     ranking,
@@ -223,11 +227,15 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     volatility,
     bote: {
       total: totalBote,
-      participants: totalBoteParticipants,
-      first: totalBote * ((boteConfig?.firstPrizePct ?? 60) / 100),
-      second: totalBote * ((boteConfig?.secondPrizePct ?? 30) / 100),
-      third: totalBote * ((boteConfig?.thirdPrizePct ?? 10) / 100)
+      currency: boteConfig?.currency ?? "EUR",
+      first: firstPrize,
+      second: secondPrize,
+      third: thirdPrize,
+      consolation: consolationPrize,
+      prizeSum,
+      balance: totalBote - prizeSum
     },
     participantIds: [...filteredParticipantIds]
   };
 }
+

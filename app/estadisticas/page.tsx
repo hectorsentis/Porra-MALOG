@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { FilterChips } from "@/components/FilterChips";
 import { PageTitle } from "@/components/PageTitle";
 import { PublicFiltersForm } from "@/components/PublicFiltersForm";
@@ -58,6 +58,13 @@ export default async function EstadisticasPage({
   const filters = parsePublicFilters(await searchParams);
   const activeTab = filters.tab ?? "resumen";
   const stats = await getAdvancedStatistics(filters);
+  const currency = stats.bote.currency ?? "EUR";
+  const prizeData = [
+    { name: "Primer premio", value: stats.bote.first },
+    { name: "Segundo premio", value: stats.bote.second },
+    { name: "Tercer premio", value: stats.bote.third },
+    { name: "Consolacion", value: stats.bote.consolation ?? 0 }
+  ].filter((row) => row.value > 0);
 
   return (
     <PublicShell>
@@ -116,7 +123,7 @@ export default async function EstadisticasPage({
           </Card>
           <div className="grid gap-3 md:grid-cols-3">
             {stats.accuracy.slice(0, 9).map((row) => (
-              <Card key={row.alias}><CardContent><p className="font-bold">{row.alias}</p><p className="text-sm text-slate-600">Exactos {row.exactScores} · Signos {row.correctSigns} · Dif {row.correctDiff}</p></CardContent></Card>
+              <Card key={row.alias}><CardContent><p className="font-bold">{row.alias}</p><p className="text-sm text-slate-600">Exactos {row.exactScores} - Signos {row.correctSigns} - Dif {row.correctDiff}</p></CardContent></Card>
             ))}
           </div>
         </section>
@@ -145,7 +152,7 @@ export default async function EstadisticasPage({
           </Card>
           <div className="grid gap-3 md:grid-cols-3">
             {stats.departments.map((row) => (
-              <Card key={row.departamento}><CardContent><p className="font-bold">{row.departamento}</p><p className="text-sm text-slate-600">MVP {row.mvp} · Min {row.min} · Media {row.average} · Max {row.max}</p></CardContent></Card>
+              <Card key={row.departamento}><CardContent><p className="font-bold">{row.departamento}</p><p className="text-sm text-slate-600">MVP {row.mvp} - Min {row.min} - Media {row.average} - Max {row.max}</p></CardContent></Card>
             ))}
           </div>
         </section>
@@ -177,11 +184,15 @@ export default async function EstadisticasPage({
 
       {activeTab === "bote" ? (
         <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <Card><CardHeader><CardTitle>Distribucion de premios</CardTitle></CardHeader><CardContent><PrizePieChart data={[{ name: "Primer premio", value: stats.bote.first }, { name: "Segundo premio", value: stats.bote.second }, { name: "Tercer premio", value: stats.bote.third }]} /></CardContent></Card>
+          <Card>
+            <CardHeader><CardTitle>Distribucion de premios</CardTitle></CardHeader>
+            <CardContent>{prizeData.length ? <PrizePieChart data={prizeData} /> : <p className="text-sm text-slate-600">Premios pendientes de configurar.</p>}</CardContent>
+          </Card>
           <div className="grid gap-3">
-            <Stat label="Bote total" value={`${stats.bote.total.toFixed(2)} EUR`} />
-            <Stat label="Participantes incluidos" value={stats.bote.participants} />
-            <Stat label="Primer premio" value={`${stats.bote.first.toFixed(2)} EUR`} />
+            <Stat label="Bote total" value={`${stats.bote.total.toFixed(2)} ${currency}`} />
+            <Stat label="Premios asignados" value={`${stats.bote.prizeSum.toFixed(2)} ${currency}`} />
+            <Stat label="Primer premio" value={`${stats.bote.first.toFixed(2)} ${currency}`} />
+            <Stat label="Consolacion" value={`${(stats.bote.consolation ?? 0).toFixed(2)} ${currency}`} />
           </div>
         </section>
       ) : null}

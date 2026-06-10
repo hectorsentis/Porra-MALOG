@@ -204,25 +204,33 @@ export async function saveBoteAction(formData: FormData) {
   await prisma.boteConfig.upsert({
     where: { id: "default" },
     update: {
-      amountPerParticipant: String(formData.get("amountPerParticipant") ?? "5"),
-      manualAdjustment: String(formData.get("manualAdjustment") ?? "0"),
-      firstPrizePct: Number(formData.get("firstPrizePct") ?? 60),
-      secondPrizePct: Number(formData.get("secondPrizePct") ?? 30),
-      thirdPrizePct: Number(formData.get("thirdPrizePct") ?? 10),
-      specialPrizeLabel: String(formData.get("specialPrizeLabel") ?? "") || null,
-      specialPrizeAmount: String(formData.get("specialPrizeAmount") ?? "0"),
-      rules: String(formData.get("rules") ?? "")
+      totalAmount: String(formData.get("totalAmount") ?? "0"),
+      firstPrize: String(formData.get("firstPrize") ?? "0"),
+      secondPrize: String(formData.get("secondPrize") ?? "0"),
+      thirdPrize: String(formData.get("thirdPrize") ?? "0"),
+      consolationPrize: String(formData.get("consolationPrize") ?? "0"),
+      currency: String(formData.get("currency") ?? "EUR") || "EUR",
+      notes: String(formData.get("notes") ?? "") || null,
+      updatedBy: "admin",
+      rules: String(formData.get("rules") ?? "") || "Reparto del bote entre primer, segundo, tercer clasificado y premio de consolacion."
     },
     create: {
       id: "default",
-      amountPerParticipant: String(formData.get("amountPerParticipant") ?? "5"),
-      manualAdjustment: String(formData.get("manualAdjustment") ?? "0"),
-      firstPrizePct: Number(formData.get("firstPrizePct") ?? 60),
-      secondPrizePct: Number(formData.get("secondPrizePct") ?? 30),
-      thirdPrizePct: Number(formData.get("thirdPrizePct") ?? 10),
-      specialPrizeLabel: String(formData.get("specialPrizeLabel") ?? "") || null,
-      specialPrizeAmount: String(formData.get("specialPrizeAmount") ?? "0"),
-      rules: String(formData.get("rules") ?? "Reparto del bote entre primer, segundo y tercer clasificado.")
+      totalAmount: String(formData.get("totalAmount") ?? "0"),
+      firstPrize: String(formData.get("firstPrize") ?? "0"),
+      secondPrize: String(formData.get("secondPrize") ?? "0"),
+      thirdPrize: String(formData.get("thirdPrize") ?? "0"),
+      consolationPrize: String(formData.get("consolationPrize") ?? "0"),
+      currency: String(formData.get("currency") ?? "EUR") || "EUR",
+      notes: String(formData.get("notes") ?? "") || null,
+      updatedBy: "admin",
+      rules: String(formData.get("rules") ?? "Reparto del bote entre primer, segundo, tercer clasificado y premio de consolacion."),
+      amountPerParticipant: "0",
+      manualAdjustment: "0",
+      firstPrizePct: 0,
+      secondPrizePct: 0,
+      thirdPrizePct: 0,
+      specialPrizeAmount: "0"
     }
   });
   await prisma.adminLog.create({ data: { action: "BOTE_UPDATED", message: "Configuracion del bote actualizada." } });
@@ -234,7 +242,7 @@ export async function rollbackAction() {
   const latest = await prisma.rankingSnapshot.findFirst({
     where: { isPublished: true },
     orderBy: { createdAt: "desc" },
-    select: { id: true }
+    select: { id: true, matchId: true }
   });
   const snapshot = await prisma.rankingSnapshot.findFirst({
     where: { isPublished: true, id: latest ? { not: latest.id } : undefined },
@@ -245,6 +253,10 @@ export async function rollbackAction() {
   await prisma.$transaction(async (tx) => {
     if (latest) {
       await tx.rankingSnapshot.update({ where: { id: latest.id }, data: { isPublished: false, isLatest: false } });
+      if (latest.matchId) {
+        await tx.matchResult.updateMany({ where: { matchId: latest.matchId, status: "OFFICIAL", isActive: true }, data: { isActive: false } });
+        await tx.match.update({ where: { matchId: latest.matchId }, data: { status: "PENDING", finished: false, homeGoals: null, awayGoals: null, resultText: null, goalDiff: null, qualifiedTeamId: null } });
+      }
     }
     await tx.rankingSnapshot.update({ where: { id: snapshot.id }, data: { isPublished: true, isLatest: true } });
     await tx.generalRanking.deleteMany();
