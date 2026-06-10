@@ -24,7 +24,7 @@ export async function getPublicBote() {
       { name: "Primer premio", value: first },
       { name: "Segundo premio", value: second },
       { name: "Tercer premio", value: third },
-      ...(specialPrizeAmount > 0 ? [{ name: config?.specialPrizeLabel ?? "Premio especial", value: specialPrizeAmount }] : [])
+      ...(specialPrizeAmount > 0 ? [{ name: config?.specialPrizeLabel ?? "Premio consolacion", value: specialPrizeAmount }] : [])
     ],
     rules: config?.rules ?? "Reparto del bote entre primer, segundo y tercer clasificado."
   };

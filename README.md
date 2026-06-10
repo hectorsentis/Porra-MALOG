@@ -15,7 +15,7 @@ Web publica para sustituir el dashboard Power BI de la porra, con Next.js App Ro
 ## Local
 
 1. Copia `.env.example` a `.env`.
-2. Configura `DATABASE_URL` y `DIRECT_URL` con URLs PostgreSQL validas.
+2. Configura `DATABASE_URL`. Si no tienes `DIRECT_URL`, el runner local `scripts/prisma-env-runner.cjs` usa `DATABASE_URL` como conexion directa de proceso.
 3. Configura `ADMIN_USERNAME`, `ADMIN_PASSWORD` y `ADMIN_SESSION_SECRET`.
 4. Ejecuta:
 
@@ -67,8 +67,8 @@ No se debe depender del Excel local para resultados online: el admin escribe res
 ## Estado verificado
 
 - `npx prisma generate`: OK.
-- `npx prisma migrate deploy`: OK.
-- `npx prisma migrate dev --skip-generate`: OK, sin cambios pendientes.
+- `npx prisma migrate deploy`: OK, sin migraciones pendientes.
+- `npx prisma migrate dev`: OK, schema sincronizado y cliente generado.
 - `npx prisma migrate status`: OK, schema actualizado.
 - `npm run import:excel:dry-run`: OK, salida sanitizada.
 - `npm run import:excel`: OK.
@@ -81,9 +81,9 @@ Conteos importados:
 - Participantes: 47.
 - Equipos: 48.
 - Partidos: 104.
-- Apuestas partidos: 3328.
-- Apuestas grupos: 1536.
+- Apuestas partidos: 4056.
+- Apuestas grupos: 1872.
 - Apuestas bonus: 47.
 - Clasificacion: 47.
 
-Nota: `NODE_ENV` no debe definirse en `.env`; Next lo gestiona automaticamente.
+Nota: `NODE_ENV` no debe definirse en `.env`; Next lo gestiona automaticamente. En este workspace no existe `data/input/Porra_mundial2026.xlsx`; el script usa `Porra_mundial2026_test.xlsx` y emite aviso. Para produccion, colocar el Excel oficial con el nombre esperado.

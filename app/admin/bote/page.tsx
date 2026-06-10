@@ -32,8 +32,8 @@ export default async function AdminBotePage() {
               <label className="grid gap-1 text-sm">Primer premio %<input className="h-10 rounded-md border border-slate-200 px-3" name="firstPrizePct" defaultValue={config?.firstPrizePct ?? 60} type="number" /></label>
               <label className="grid gap-1 text-sm">Segundo premio %<input className="h-10 rounded-md border border-slate-200 px-3" name="secondPrizePct" defaultValue={config?.secondPrizePct ?? 30} type="number" /></label>
               <label className="grid gap-1 text-sm">Tercer premio %<input className="h-10 rounded-md border border-slate-200 px-3" name="thirdPrizePct" defaultValue={config?.thirdPrizePct ?? 10} type="number" /></label>
-              <label className="grid gap-1 text-sm">Premio especial<input className="h-10 rounded-md border border-slate-200 px-3" name="specialPrizeLabel" defaultValue={config?.specialPrizeLabel ?? ""} /></label>
-              <label className="grid gap-1 text-sm">Importe especial<input className="h-10 rounded-md border border-slate-200 px-3" name="specialPrizeAmount" defaultValue={String(config?.specialPrizeAmount ?? "0")} type="number" step="0.01" /></label>
+              <label className="grid gap-1 text-sm">Premio consolacion<input className="h-10 rounded-md border border-slate-200 px-3" name="specialPrizeLabel" defaultValue={config?.specialPrizeLabel ?? ""} /></label>
+              <label className="grid gap-1 text-sm">Importe consolacion<input className="h-10 rounded-md border border-slate-200 px-3" name="specialPrizeAmount" defaultValue={String(config?.specialPrizeAmount ?? "0")} type="number" step="0.01" /></label>
               <label className="grid gap-1 text-sm md:col-span-3">Reglas<textarea className="min-h-24 rounded-md border border-slate-200 px-3 py-2" name="rules" defaultValue={config?.rules ?? "Reparto del bote entre primer, segundo y tercer clasificado."} /></label>
               <Button>Guardar bote</Button>
             </form>

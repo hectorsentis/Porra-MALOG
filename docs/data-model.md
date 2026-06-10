@@ -21,9 +21,13 @@ El schema Prisma usa nombres legibles y preserva la semantica Power BI con `@@ma
 - `GameRule`
 - `RankingSnapshot`
 - `RankingSnapshotRow`
+- `ParticipantScoreSnapshot`
+- `MatchResult`
+- `MatchResultEvent`
 - `SimulationRun`
 - `RecalculationRun`
 - `AdminLog`
+- `BoteConfig`
 
 ## Privacidad
 
