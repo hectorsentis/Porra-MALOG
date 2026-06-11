@@ -292,11 +292,16 @@ model GeneralRanking {
 
 model GameRule {
   id          String   @id @default(cuid())
-  key         String   @unique
-  value       Int
-  active      Boolean  @default(true)
-  description String?
+  key         String   @unique @map("Concepto")
+  value       Int      @map("Puntos")
+  active      Boolean  @default(true) @map("Activo")
+  description String?  @map("Comentario")
+  category    String?
+  label       String?
+  sortOrder   Int      @default(0)
   updatedAt   DateTime @updatedAt
+
+  @@map("tbl_puntuacion_config")
 }
 
 model RankingSnapshot {

@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { calculateRanking } from "./ranking";
 import { scoreMatch } from "./scoreMatch";
+import { getActiveGameRules } from "./ruleConfig";
 
 export function isOfficialMatchForScoring(match: {
   status?: string | null;
@@ -45,11 +46,12 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
   });
 
   try {
-    const [participants, bets, matches, previous] = await Promise.all([
+    const [participants, bets, matches, previous, rules] = await Promise.all([
       prisma.participant.findMany(),
       prisma.betMatch.findMany(),
       prisma.match.findMany(),
-      prisma.generalRanking.findMany()
+      prisma.generalRanking.findMany(),
+      getActiveGameRules()
     ]);
 
     const matchById = new Map(matches.map((match) => [match.matchId, match]));
@@ -80,7 +82,8 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
             awayGoals: match.awayGoals,
             qualifiedTeamId: match.overrideQualifiedTeamId ?? match.qualifiedTeamId,
             finished: match.finished
-          }
+          },
+          rules
         );
       })
       .filter((score): score is NonNullable<typeof score> => Boolean(score));
@@ -204,3 +207,4 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
     throw error;
   }
 }
+

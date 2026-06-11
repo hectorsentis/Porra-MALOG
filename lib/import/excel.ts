@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
+import { metadataForRule } from "@/lib/game/ruleConfig";
 
 const participantSchema = z.object({
   participantId: z.string().min(1),
@@ -66,6 +67,16 @@ const matchSchema = z.object({
   notas: z.string().nullable()
 });
 
+
+const gameRuleSchema = z.object({
+  key: z.string().min(1),
+  value: z.number().int(),
+  active: z.boolean(),
+  description: z.string().nullable(),
+  category: z.string(),
+  label: z.string(),
+  sortOrder: z.number().int()
+});
 const classificationSchema = z.object({
   pos: z.number().int(),
   participantId: z.string().min(1),
@@ -112,6 +123,7 @@ type ParsedWorkbook = {
   groupBets: Record<string, unknown>[];
   bonusBets: Record<string, unknown>[];
   classifications: z.infer<typeof classificationSchema>[];
+  gameRules: z.infer<typeof gameRuleSchema>[];
   warnings: string[];
   errors: string[];
 };
@@ -149,9 +161,15 @@ function date(value: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+
+function activeRule(value: unknown): boolean {
+  const raw = text(value)?.toLowerCase();
+  if (!raw) return true;
+  return !["false", "0", "no", "off", "inactivo", "inactive"].includes(raw);
+}
 function bool(value: unknown): boolean {
   const raw = text(value)?.toLowerCase();
-  return ["true", "1", "yes", "si", "sí", "x", "finished", "finalizado"].includes(raw ?? "");
+  return ["true", "1", "yes", "si", "sÃƒÂ­", "x", "finished", "finalizado"].includes(raw ?? "");
 }
 
 /**
@@ -324,11 +342,13 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
   const groupBetRows = rowsByTable(workbook, tableMap, "tbl_bets_group_positions");
   const bonusBetRows = rowsByTable(workbook, tableMap, "tbl_bets_bonus");
   const classificationRows = rowsByTable(workbook, tableMap, "tbl_clasificacion_general");
+  const gameRuleRows = rowsByTable(workbook, tableMap, "tbl_puntuacion_config");
 
   const warnings = [
     ...requiredMissing(participantRows, ["Participant_ID", "Alias"]),
     ...requiredMissing(teamRows, ["Team_ID", "Seleccion"]),
     ...requiredMissing(matchRows, ["Match_ID"]),
+    ...requiredMissing(gameRuleRows, ["Concepto", "Puntos"]),
     ...duplicateWarnings(participantRows, "Alias"),
     ...duplicateWarnings(participantRows, "Participant_ID")
   ];
@@ -460,6 +480,27 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
       return row;
     });
 
+
+  const gameRules = gameRuleRows
+    .map((row) => {
+      const key = text(row.Concepto) ?? "";
+      const meta = metadataForRule(key);
+      return {
+        key,
+        value: number(row.Puntos) ?? 0,
+        active: activeRule(row.Activo),
+        description: text(row.Comentario),
+        category: meta.category,
+        label: meta.label,
+        sortOrder: meta.sortOrder
+      };
+    })
+    .filter((row) => row.key)
+    .map((row, index) => {
+      const parsed = gameRuleSchema.safeParse(row);
+      if (!parsed.success) warnings.push(`Game rule row ${index + 1}: ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
+      return row;
+    });
   const horaByMatchId = matchHoraDisplayMap(workbook);
   for (const match of matches) {
     match.hora = normalizeHora(horaByMatchId.get(match.matchId) ?? match.hora);
@@ -511,6 +552,7 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
     groupBets: groupBetRows,
     bonusBets: bonusBetRows,
     classifications,
+    gameRules,
     counts: {
       participants: participants.length,
       teams: teams.length,
@@ -518,7 +560,8 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
       betMatches: betMatchRows.length,
       groupBets: groupBetRows.length,
       bonusBets: bonusBetRows.length,
-      classifications: classifications.length
+      classifications: classifications.length,
+      gameRules: gameRules.length
     },
     warnings,
     errors,
@@ -560,7 +603,7 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       await tx.betBonus.deleteMany();
       // Free up every slug behind a temporary placeholder first, since the new
       // slugs can be reassigned between participants (e.g. alias corrections)
-      // and `slug` is unique — upserting in array order could otherwise collide
+      // and `slug` is unique Ã¢â‚¬â€ upserting in array order could otherwise collide
       // with another participant's not-yet-updated current slug.
       for (const participant of parsed.participants) {
         await tx.participant.updateMany({
@@ -669,6 +712,20 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       if (betMatches.length > 0) await tx.betMatch.createMany({ data: betMatches, skipDuplicates: true });
       if (groupBets.length > 0) await tx.betGroupPosition.createMany({ data: groupBets, skipDuplicates: true });
       if (bonusBets.length > 0) await tx.betBonus.createMany({ data: bonusBets, skipDuplicates: true });
+      for (const rule of parsed.gameRules) {
+        await tx.gameRule.upsert({
+          where: { key: rule.key },
+          update: {
+            value: rule.value,
+            active: rule.active,
+            description: rule.description,
+            category: rule.category,
+            label: rule.label,
+            sortOrder: rule.sortOrder
+          },
+          create: rule
+        });
+      }
       if (parsed.classifications.length > 0) {
         await tx.generalRanking.createMany({ data: parsed.classifications, skipDuplicates: true });
         await tx.rankingSnapshot.updateMany({ where: { isLatest: true }, data: { isLatest: false } });
@@ -713,7 +770,8 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
             betMatches.length +
             groupBets.length +
             bonusBets.length +
-            parsed.classifications.length
+            parsed.classifications.length +
+            parsed.gameRules.length
         }
       });
     }, { maxWait: 15000, timeout: 60000 });
@@ -731,3 +789,5 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
 
   return toPreview(parsed, false);
 }
+
+

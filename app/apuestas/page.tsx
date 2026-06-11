@@ -34,6 +34,7 @@ async function ContextFilters({ filters, tab }: { filters: PublicFilters; tab: s
   return (
     <form className="mb-4 grid gap-2 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-4">
       <input type="hidden" name="tab" value={tab} />
+      {filters.resultado ? <input type="hidden" name="resultado" value={filters.resultado} /> : null}
       {fields.map((field) => (
         <label key={field} className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
           {labels[field]}
@@ -115,6 +116,85 @@ function TotalGoalsCard({ stats, distribution }: { stats: GoalsStat; distributio
   );
 }
 
+
+type ResultVoteRow = {
+  alias: string;
+  departamento: string | null;
+  rango: string | null;
+  slug: string;
+  matchId: string;
+  matchNo: number | null;
+  fase: string | null;
+  grupo: string | null;
+  jornadaId: string | null;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  prediction: string;
+};
+
+function resultHref(result: string, filters: PublicFilters) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (!value || key === "resultado") continue;
+    params.set(key, value);
+  }
+  params.set("tab", "grupos");
+  params.set("resultado", result);
+  return `/apuestas?${params.toString()}`;
+}
+
+function ClickableResultBars({ data, filters }: { data: Array<{ name: string; value: number }>; filters: PublicFilters }) {
+  const maxValue = Math.max(1, ...data.map((row) => row.value));
+  if (data.length === 0) return <p className="text-sm text-slate-600">Sin apuestas registradas.</p>;
+  return (
+    <div className="space-y-2">
+      {data.map((row) => {
+        const active = filters.resultado === row.name;
+        return (
+          <Link key={row.name} href={resultHref(row.name, filters)} className={`group grid grid-cols-[52px_minmax(0,1fr)_36px] items-center gap-3 rounded-md px-2 py-1 text-sm transition ${active ? "bg-primary/10" : "hover:bg-slate-50"}`}>
+            <span className="font-bold text-slate-800">{row.name}</span>
+            <span className="h-8 overflow-hidden rounded-md bg-slate-100">
+              <span className={`flex h-full items-center rounded-md px-2 text-xs font-semibold text-white transition ${active ? "bg-air-gold" : "bg-primary group-hover:bg-blue-900"}`} style={{ width: `${Math.max(10, Math.round((row.value / maxValue) * 100))}%` }}>
+                {row.value}
+              </span>
+            </span>
+            <span className="text-right text-xs font-semibold text-slate-500">Ver</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function ResultVotesTable({ result, rows }: { result?: string; rows: ResultVoteRow[] }) {
+  if (!result) return <p className="mt-3 text-xs text-slate-500">Pulsa un resultado para ver quien lo ha apostado.</p>;
+  return (
+    <div className="mt-4 rounded-lg border border-slate-200 bg-white">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
+        <p className="text-sm font-semibold text-slate-900">Apostaron {result}</p>
+        <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">{rows.length} votos</span>
+      </div>
+      {rows.length > 0 ? (
+        <div className="max-h-80 overflow-auto">
+          <table className="w-full min-w-[680px] text-sm">
+            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="px-3 py-2">Alias</th><th className="px-3 py-2">Departamento</th><th className="px-3 py-2">Rango</th><th className="px-3 py-2">Partido</th><th className="px-3 py-2">Fase</th></tr></thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={`${row.slug}-${row.matchId}`} className="border-t border-slate-100">
+                  <td className="px-3 py-2 font-semibold"><Link className="text-primary hover:underline" href={`/participantes/${row.slug}`}>{row.alias}</Link></td>
+                  <td className="px-3 py-2">{row.departamento ?? "-"}</td>
+                  <td className="px-3 py-2">{row.rango ?? "-"}</td>
+                  <td className="px-3 py-2">{row.homeTeam ?? "Local"} - {row.awayTeam ?? "Visitante"}</td>
+                  <td className="px-3 py-2">{row.fase ?? row.jornadaId ?? row.grupo ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="px-3 py-4 text-sm text-slate-600">No hay jugadores para este marcador con los filtros actuales.</p>}
+    </div>
+  );
+}
 export default async function ApuestasPage({
   searchParams
 }: {
@@ -187,7 +267,7 @@ export default async function ApuestasPage({
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
             <Card><CardHeader><CardTitle>Tendencia 1-X-2</CardTitle></CardHeader><CardContent><SimpleBarChart data={groupMatches.prediction.signRows} /></CardContent></Card>
-            <Card><CardHeader><CardTitle>Top resultados</CardTitle></CardHeader><CardContent><SimpleBarChart data={groupMatches.topResults.slice(0, 10)} /></CardContent></Card>
+            <Card><CardHeader><CardTitle>Top resultados</CardTitle></CardHeader><CardContent><ClickableResultBars data={groupMatches.topResults.slice(0, 10)} filters={{ ...filters, tab: activeTab }} /><ResultVotesTable result={groupMatches.selectedResult} rows={groupMatches.resultVotes} /></CardContent></Card>
             <Card><CardHeader><CardTitle>Jugadores resultadistas</CardTitle></CardHeader><CardContent><SimpleBarChart data={groupMatches.resultadistas.slice(0, 10)} /></CardContent></Card>
             <Card><CardHeader><CardTitle>Jugadores amarrategui</CardTitle></CardHeader><CardContent><SimpleBarChart data={groupMatches.amarrategui.slice(0, 10)} /></CardContent></Card>
             <Card><CardHeader><CardTitle>Equipos mas confiados</CardTitle></CardHeader><CardContent><SimpleBarChart data={groupMatches.trusted.slice(0, 10)} /></CardContent></Card>
@@ -223,5 +303,7 @@ export default async function ApuestasPage({
     </PublicShell>
   );
 }
+
+
 
 

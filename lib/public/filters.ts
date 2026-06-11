@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export type PublicFilters = {
@@ -12,6 +12,7 @@ export type PublicFilters = {
   estado?: string;
   fecha?: string;
   partido?: string;
+  resultado?: string;
   tab?: string;
 };
 
@@ -41,6 +42,7 @@ export function parsePublicFilters(searchParams: Record<string, string | string[
     estado: read("estado") || undefined,
     fecha: read("fecha") || undefined,
     partido: read("partido") || undefined,
+    resultado: read("resultado") || undefined,
     tab: read("tab") || "resumen"
   };
 }
@@ -90,3 +92,5 @@ export async function getPublicFilterOptions(): Promise<PublicFilterOptions> {
     equipo: clean(teams.map((team) => team.seleccion || team.teamId))
   };
 }
+
+

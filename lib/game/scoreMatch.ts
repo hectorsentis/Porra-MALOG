@@ -1,4 +1,4 @@
-import { defaultRules, spainTeamIds, type GameRules } from "./rules";
+﻿import { defaultRules, spainTeamIds, type GameRules } from "./rules";
 import type { MatchBetInput, MatchResultInput, MatchScore, MatchSign } from "./types";
 
 export function getSign(homeGoals?: number | null, awayGoals?: number | null): MatchSign | null {
@@ -17,6 +17,16 @@ function sameTeam(left?: string | null, right?: string | null): boolean {
   return Boolean(left && right && left.trim().toUpperCase() === right.trim().toUpperCase());
 }
 
+function knockoutQualifiedPoints(fase: string | null | undefined, rules: GameRules): number {
+  const raw = (fase ?? "").toLocaleUpperCase("es-ES");
+  if (raw.includes("TERCER") || raw.includes("THIRD")) return rules.koThirdPlace;
+  if (raw.includes("FINAL")) return rules.koChampion;
+  if (raw.includes("SEMIF") || raw.includes("1/2") || raw.includes("SF")) return rules.koSfQualified;
+  if (raw.includes("CUART") || raw.includes("1/4") || raw.includes("QF")) return rules.koQfQualified;
+  if (raw.includes("OCTAV") || raw.includes("1/8") || raw.includes("R16")) return rules.koR16Qualified;
+  if (raw.includes("1/16") || raw.includes("DIECISEIS") || raw.includes("R32")) return rules.koR32Qualified;
+  return rules.qualifiedTeam;
+}
 function isSpainMatch(result: MatchResultInput): boolean {
   const home = result.homeTeamId?.trim().toUpperCase();
   const away = result.awayTeamId?.trim().toUpperCase();
@@ -55,7 +65,7 @@ export function scoreMatch(
 
   const baseResultPoints = exactOk ? rules.exactScore : diffOk ? rules.correctGoalDiff : signOk ? rules.correctSign : 0;
   const pointsResult = baseResultPoints * multiplier;
-  const pointsQualified = qualifiedOk ? rules.qualifiedTeam : 0;
+  const pointsQualified = qualifiedOk ? knockoutQualifiedPoints(result.fase, rules) : 0;
   const pointsCruceExacto = cruceExactoOk ? rules.exactCrossing : 0;
 
   return {
@@ -80,3 +90,4 @@ export function scoreMatch(
     pointsTotal: pointsResult + pointsQualified + pointsCruceExacto
   };
 }
+

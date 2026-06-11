@@ -111,8 +111,8 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
       participantId: true,
       predHomeGoals: true,
       predAwayGoals: true,
-      participant: { select: { alias: true, departamento: true, rango: true } },
-      match: { select: { homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, fase: true, grupo: true, jornadaId: true } }
+      participant: { select: { alias: true, departamento: true, rango: true, slug: true } },
+      match: { select: { matchId: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, fase: true, grupo: true, jornadaId: true } }
     }
   });
   const filtered = rows.filter((row) => {
@@ -157,12 +157,34 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
 
   const topResults = countValues(filtered.map((row) => row.predHomeGoals == null || row.predAwayGoals == null ? null : `${row.predHomeGoals}-${row.predAwayGoals}`));
   const complete = filtered.filter((row) => row.predHomeGoals != null && row.predAwayGoals != null);
+  const selectedResult = filters.resultado && /^\d+-\d+$/.test(filters.resultado) ? filters.resultado : undefined;
+  const resultVotes = selectedResult
+    ? complete
+        .filter((row) => `${row.predHomeGoals}-${row.predAwayGoals}` === selectedResult)
+        .map((row) => ({
+          alias: row.participant.alias,
+          departamento: row.participant.departamento,
+          rango: row.participant.rango,
+          slug: row.participant.slug,
+          matchId: row.match.matchId,
+          matchNo: row.match.matchNo,
+          fase: row.match.fase,
+          grupo: row.match.grupo,
+          jornadaId: row.match.jornadaId,
+          homeTeam: row.match.homeTeam ?? row.match.homeTeamId,
+          awayTeam: row.match.awayTeam ?? row.match.awayTeamId,
+          prediction: selectedResult
+        }))
+        .sort((a, b) => a.alias.localeCompare(b.alias, "es-ES") || String(a.matchNo ?? "").localeCompare(String(b.matchNo ?? ""), "es-ES"))
+    : [];
   const resultadistaLabels = participantLabels(resultadistas);
   const amarrateguiLabels = participantLabels(amarrategui);
   return {
     totalBets: filtered.length,
     prediction,
     topResults,
+    selectedResult,
+    resultVotes,
     averageHomeGoals: complete.length ? Math.round((complete.reduce((sum, row) => sum + (row.predHomeGoals ?? 0), 0) / complete.length) * 100) / 100 : 0,
     averageAwayGoals: complete.length ? Math.round((complete.reduce((sum, row) => sum + (row.predAwayGoals ?? 0), 0) / complete.length) * 100) / 100 : 0,
     resultadistas: [...resultadistas.entries()]
@@ -223,4 +245,8 @@ export async function getGroupClassificationBetInsights(filters: PublicFilters) 
     spainMorocco: table.filter((row) => ["ESP", "ESPANA", "ESPAÑA", "MAR", "MARRUECOS", "MOROCCO"].includes(row.team.toLocaleUpperCase("es-ES")))
   };
 }
+
+
+
+
 

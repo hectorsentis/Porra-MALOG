@@ -1,73 +1,28 @@
 ﻿import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { defaultRules } from "@/lib/game/rules";
+import { getRuleSections } from "@/lib/game/ruleConfig";
 
-const maxKnockoutPoints = defaultRules.exactScore + defaultRules.qualifiedTeam + defaultRules.exactCrossing;
-const maxSpainKnockoutPoints = defaultRules.exactScore * defaultRules.spainMultiplier + defaultRules.qualifiedTeam + defaultRules.exactCrossing;
+export const dynamic = "force-dynamic";
 
-const sections = [
-  {
-    title: "Partidos",
-    rows: [
-      ["Resultado exacto", defaultRules.exactScore],
-      ["Diferencia correcta", defaultRules.correctGoalDiff],
-      ["Signo correcto", defaultRules.correctSign],
-      ["Multiplicador partidos de Espana", `x${defaultRules.spainMultiplier}`]
-    ]
-  },
-  {
-    title: "Eliminatorias",
-    rows: [
-      ["Marcador exacto", defaultRules.exactScore],
-      ["Diferencia correcta", defaultRules.correctGoalDiff],
-      ["Signo correcto", defaultRules.correctSign],
-      ["Clasificado correcto", defaultRules.qualifiedTeam],
-      ["Cruce exacto", defaultRules.exactCrossing],
-      ["Maximo por partido KO", maxKnockoutPoints],
-      ["Maximo KO con Espana", maxSpainKnockoutPoints]
-    ]
-  },
-  {
-    title: "Clasificacion de grupos",
-    rows: [
-      ["Equipo clasificado", defaultRules.groupQualified],
-      ["Posicion exacta", defaultRules.groupExactPosition]
-    ]
-  },
-  {
-    title: "Bonus final",
-    rows: [
-      ["Campeon", defaultRules.champion],
-      ["Subcampeon", defaultRules.runnerUp],
-      ["Semifinalista", defaultRules.semifinalist],
-      ["Maximo goleador", defaultRules.topScorer],
-      ["Seleccion mas goleadora", defaultRules.teamMostGoalsFor],
-      ["Seleccion mas goleada", defaultRules.teamMostGoalsAgainst],
-      ["Seleccion menos goleadora", defaultRules.teamLeastGoalsFor],
-      ["Seleccion menos goleada", defaultRules.teamLeastGoalsAgainst],
-      ["Equipo revelacion", defaultRules.revelation],
-      ["Equipo decepcion", defaultRules.disappointment],
-      ["Total goles torneo", defaultRules.totalGoals],
-      ["Tolerancia total goles", `+/- ${defaultRules.totalGoalsTolerance}`]
-    ]
-  }
-];
-
-export default function ReglasPage() {
+export default async function ReglasPage() {
+  const sections = await getRuleSections();
   return (
     <PublicShell>
       <PageTitle title="Reglas" subtitle="Puntuacion oficial aplicada al recalculo de la porra." />
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {sections.map((section) => (
           <Card key={section.title}>
             <CardHeader><CardTitle>{section.title}</CardTitle></CardHeader>
             <CardContent>
               <div className="grid gap-2 text-sm">
-                {section.rows.map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between gap-4 rounded-md border border-slate-100 px-3 py-2">
-                    <span>{label}</span>
-                    <strong className="text-primary">{value}</strong>
+                {section.rules.map((rule) => (
+                  <div key={rule.key} className="rounded-md border border-slate-100 px-3 py-2">
+                    <div className="flex items-center justify-between gap-4">
+                      <span>{rule.label}</span>
+                      <strong className="text-primary">{rule.key === "SPAIN_MULTIPLIER" ? `x${rule.value}` : rule.value}</strong>
+                    </div>
+                    {rule.description ? <p className="mt-1 text-xs text-slate-500">{rule.description}</p> : null}
                   </div>
                 ))}
               </div>
@@ -78,5 +33,3 @@ export default function ReglasPage() {
     </PublicShell>
   );
 }
-
-

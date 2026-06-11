@@ -1,10 +1,12 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminSession, destroyAdminSession, requireAdmin } from "@/lib/admin/auth";
 import { importExcelWorkbook, type ExcelImportPreview } from "@/lib/import/excel";
 import { prisma } from "@/lib/prisma";
 import { recalculateAll } from "@/lib/game/recalculateAll";
+import { metadataForRule } from "@/lib/game/ruleConfig";
 
 export type ImportActionState = {
   preview?: ExcelImportPreview;
@@ -237,6 +239,35 @@ export async function saveBoteAction(formData: FormData) {
   redirect("/admin/bote?saved=1");
 }
 
+export async function saveRulesAction(formData: FormData) {
+  await requireAdmin();
+  const keys = formData.getAll("ruleKey").map((value) => String(value));
+  await prisma.$transaction(async (tx) => {
+    for (const key of keys) {
+      const valueRaw = String(formData.get(`value:${key}`) ?? "0").trim();
+      const value = Number(valueRaw);
+      if (!key || !Number.isInteger(value)) continue;
+      const meta = metadataForRule(key);
+      const data = {
+        value,
+        active: formData.get(`active:${key}`) === "on",
+        description: String(formData.get(`description:${key}`) ?? "") || null,
+        category: meta.category,
+        label: meta.label,
+        sortOrder: meta.sortOrder
+      };
+      await tx.gameRule.upsert({
+        where: { key },
+        update: data,
+        create: { key, ...data }
+      });
+    }
+    await tx.adminLog.create({ data: { action: "RULES_UPDATED", message: "Reglas de puntuacion actualizadas desde admin." } });
+  });
+  revalidatePath("/reglas");
+  revalidatePath("/admin/reglas");
+  redirect("/admin/reglas?saved=1");
+}
 export async function rollbackAction() {
   await requireAdmin();
   const latest = await prisma.rankingSnapshot.findFirst({
@@ -280,3 +311,5 @@ export async function rollbackAction() {
   });
   redirect("/admin/rollback?ok=1");
 }
+
+
