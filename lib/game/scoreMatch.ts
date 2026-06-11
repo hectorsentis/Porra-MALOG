@@ -17,6 +17,10 @@ function sameTeam(left?: string | null, right?: string | null): boolean {
   return Boolean(left && right && left.trim().toUpperCase() === right.trim().toUpperCase());
 }
 
+function isGroupPhase(fase?: string | null): boolean {
+  return (fase ?? "").toLocaleUpperCase("es-ES").includes("GRUPO");
+}
+
 function knockoutQualifiedPoints(fase: string | null | undefined, rules: GameRules): number {
   const raw = (fase ?? "").toLocaleUpperCase("es-ES");
   if (raw.includes("TERCER") || raw.includes("THIRD")) return rules.koThirdPlace;
@@ -55,6 +59,7 @@ export function scoreMatch(
   );
   const cruceExactoOk = Boolean(
     finished &&
+      !isGroupPhase(result.fase) &&
       bet.predHomeTeamId &&
       bet.predAwayTeamId &&
       sameTeam(bet.predHomeTeamId, result.homeTeamId) &&

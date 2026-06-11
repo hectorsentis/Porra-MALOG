@@ -1,16 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { calculateRanking } from "./ranking";
 import { scoreMatch } from "./scoreMatch";
+import { scoreGroups } from "./scoreGroups";
+import { computeGroupStandings } from "./groupStandings";
 import { getActiveGameRules } from "./ruleConfig";
+import { isOfficialMatchForScoring } from "./matchStatus";
+import type { GroupStandingInput } from "./types";
 
-export function isOfficialMatchForScoring(match: {
-  status?: string | null;
-  finished?: boolean | null;
-  homeGoals?: number | null;
-  awayGoals?: number | null;
-}) {
-  return match.status === "OFFICIAL" && match.finished === true && match.homeGoals != null && match.awayGoals != null;
-}
+export { isOfficialMatchForScoring } from "./matchStatus";
 
 export type RecalculateAllOptions = {
   trigger?: string;
@@ -46,12 +43,14 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
   });
 
   try {
-    const [participants, bets, matches, previous, rules] = await Promise.all([
+    const [participants, bets, matches, previous, rules, teams, groupBets] = await Promise.all([
       prisma.participant.findMany(),
       prisma.betMatch.findMany(),
       prisma.match.findMany(),
       prisma.generalRanking.findMany(),
-      getActiveGameRules()
+      getActiveGameRules(),
+      prisma.team.findMany(),
+      prisma.betGroupPosition.findMany()
     ]);
 
     const matchById = new Map(matches.map((match) => [match.matchId, match]));
@@ -88,12 +87,52 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
       })
       .filter((score): score is NonNullable<typeof score> => Boolean(score));
 
+    const bump = (map: Map<string, number>, key: string, amount = 1) => map.set(key, (map.get(key) ?? 0) + amount);
+
     const pointsMatchesByParticipant = new Map<string, number>();
     const pointsKoByParticipant = new Map<string, number>();
+    const exactScoresByParticipant = new Map<string, number>();
+    const correctDiffByParticipant = new Map<string, number>();
+    const correctSignsByParticipant = new Map<string, number>();
+    const correctCrucesByParticipant = new Map<string, number>();
     for (const score of scores) {
       const isGroupPhase = (score.fase ?? "").toLocaleUpperCase("es-ES").includes("GRUPO");
       const target = isGroupPhase ? pointsMatchesByParticipant : pointsKoByParticipant;
       target.set(score.participantId, (target.get(score.participantId) ?? 0) + score.pointsTotal);
+      if (score.exactOk) bump(exactScoresByParticipant, score.participantId);
+      if (score.diffOk) bump(correctDiffByParticipant, score.participantId);
+      if (score.signOk) bump(correctSignsByParticipant, score.participantId);
+      if (score.cruceExactoOk) bump(correctCrucesByParticipant, score.participantId);
+    }
+
+    const teamsByGroup = teams.map((team) => ({ teamId: team.teamId, grupo: team.grupo, tieBreakerRank: team.tieBreakerRank, fifaRank: team.fifaRank }));
+    const groupStandingsResult = computeGroupStandings(matches, teamsByGroup);
+    const standingInputs: GroupStandingInput[] = groupStandingsResult.standings.map((row) => ({
+      grupo: row.grupo,
+      teamId: row.teamId,
+      pos: row.pos,
+      status: row.qualified ? "clasificado" : "out"
+    }));
+    const groupScores = scoreGroups(
+      groupBets.map((bet) => ({
+        groupBetId: bet.groupBetId,
+        participantId: bet.participantId,
+        grupo: bet.grupo,
+        predPos: bet.predPos,
+        predTeamId: bet.predTeamId,
+        valid: bet.valid
+      })),
+      standingInputs,
+      rules
+    );
+
+    const pointsGroupsByParticipant = new Map<string, number>();
+    const correctGroupQualifiedByParticipant = new Map<string, number>();
+    const correctGroupPositionsByParticipant = new Map<string, number>();
+    for (const score of groupScores) {
+      bump(pointsGroupsByParticipant, score.participantId, score.pointsTotal);
+      if (score.qualifiedOk) bump(correctGroupQualifiedByParticipant, score.participantId);
+      if (score.exactPositionOk) bump(correctGroupPositionsByParticipant, score.participantId);
     }
 
     const ranking = calculateRanking(
@@ -105,7 +144,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           departamento: participant.departamento,
           rango: participant.rango,
           pointsMatches: pointsMatchesByParticipant.get(participant.participantId) ?? 0,
-          pointsGroups: prev?.pointsGroups ?? 0,
+          pointsGroups: pointsGroupsByParticipant.get(participant.participantId) ?? 0,
           pointsEliminatorias: pointsKoByParticipant.get(participant.participantId) ?? 0,
           pointsBonus: prev?.pointsBonus ?? 0,
           previousPos: prev?.pos,
@@ -116,6 +155,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
 
     await prisma.$transaction(async (tx) => {
       await tx.scoringMatch.deleteMany();
+      await tx.scoringGroup.deleteMany();
       await tx.generalRanking.deleteMany();
       await tx.scoringMatch.createMany({
         data: scores.map((score) => ({
@@ -136,6 +176,22 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           pointsTotal: score.pointsTotal
         }))
       });
+      await tx.scoringGroup.createMany({
+        data: groupScores.map((score) => ({
+          groupBetId: score.groupBetId,
+          participantId: score.participantId,
+          grupo: score.grupo,
+          predPos: score.predPos,
+          predTeamId: score.predTeamId,
+          realPos: score.realPos,
+          realStatus: score.realStatus,
+          qualifiedOk: score.qualifiedOk,
+          exactPositionOk: score.exactPositionOk,
+          pointsQualified: score.pointsQualified,
+          pointsPosition: score.pointsPosition,
+          pointsTotal: score.pointsTotal
+        }))
+      });
       await tx.generalRanking.createMany({
         data: ranking.map((row) => ({
           pos: row.pos,
@@ -148,6 +204,12 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           pointsEliminatorias: row.pointsEliminatorias,
           pointsBonus: row.pointsBonus,
           pointsTotal: row.pointsTotal,
+          exactScores: exactScoresByParticipant.get(row.participantId) ?? 0,
+          correctDiff: correctDiffByParticipant.get(row.participantId) ?? 0,
+          correctSigns: correctSignsByParticipant.get(row.participantId) ?? 0,
+          correctGroupQualified: correctGroupQualifiedByParticipant.get(row.participantId) ?? 0,
+          correctGroupPositions: correctGroupPositionsByParticipant.get(row.participantId) ?? 0,
+          correctCruces: correctCrucesByParticipant.get(row.participantId) ?? 0,
           deltaPos: row.deltaPos,
           deltaPoints: row.deltaPoints
         }))

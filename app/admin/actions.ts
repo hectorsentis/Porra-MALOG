@@ -114,6 +114,60 @@ export async function saveResultAction(formData: FormData) {
   redirect("/admin/resultados?saved=1");
 }
 
+export async function deleteResultAction(formData: FormData) {
+  await requireAdmin();
+  const matchId = String(formData.get("matchId") ?? "");
+  if (!matchId) redirect("/admin/resultados?error=1");
+
+  const previous = await prisma.match.findUnique({ where: { matchId } });
+  if (!previous) redirect("/admin/resultados?error=1");
+
+  const wasOfficial = previous.status === "OFFICIAL";
+
+  await prisma.$transaction(async (tx) => {
+    await tx.matchResult.updateMany({ where: { matchId, isActive: true }, data: { isActive: false } });
+    await tx.match.update({
+      where: { matchId },
+      data: {
+        homeGoals: null,
+        awayGoals: null,
+        homePens: null,
+        awayPens: null,
+        finished: false,
+        resultText: null,
+        realSign: null,
+        goalDiff: null,
+        winnerTeamId: null,
+        qualifiedTeamId: null,
+        overrideQualifiedTeamId: null,
+        status: "PENDING"
+      }
+    });
+    await tx.matchResultEvent.create({
+      data: {
+        matchId,
+        eventType: "DELETE_RESULT",
+        previousStatus: previous.status,
+        nextStatus: "PENDING",
+        previousHomeGoals: previous.homeGoals,
+        previousAwayGoals: previous.awayGoals,
+        nextHomeGoals: null,
+        nextAwayGoals: null,
+        qualifiedTeamId: null,
+        phase: previous.fase,
+        matchday: previous.jornadaId,
+        createdBy: "admin"
+      }
+    });
+    await tx.adminLog.create({ data: { action: "RESULT_DELETED", message: `Resultado borrado: ${matchId}` } });
+  });
+
+  if (wasOfficial) {
+    await recalculateAll(prisma, { trigger: "result-deleted", matchId, createdBy: "admin" });
+  }
+  redirect("/admin/resultados?deleted=1");
+}
+
 export async function saveMatchAction(formData: FormData) {
   await requireAdmin();
   const matchId = String(formData.get("matchId") ?? "").trim();

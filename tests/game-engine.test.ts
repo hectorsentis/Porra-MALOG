@@ -83,6 +83,32 @@ describe("scoreMatch", () => {
     expect(score.spainMatch).toBe(true);
     expect(score.multiplier).toBe(defaultRules.spainMultiplier);
   });
+
+  it("does not score exact crossing for group-stage matches", () => {
+    const score = scoreMatch(
+      {
+        participantId: "P1",
+        matchId: "M1",
+        fase: "GRUPOS",
+        predHomeTeamId: "ESP",
+        predAwayTeamId: "FRA",
+        predHomeGoals: 2,
+        predAwayGoals: 0
+      },
+      {
+        matchId: "M1",
+        fase: "GRUPOS",
+        homeTeamId: "ESP",
+        awayTeamId: "FRA",
+        homeGoals: 2,
+        awayGoals: 0,
+        finished: true
+      }
+    );
+
+    expect(score.cruceExactoOk).toBe(false);
+    expect(score.pointsCruceExacto).toBe(0);
+  });
 });
 
 describe("scoreGroups", () => {
