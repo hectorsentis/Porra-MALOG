@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { MatchStatus } from "@prisma/client";
 import type { PublicFilters } from "./filters";
 import { summarizePredictionDistribution } from "./matchStats";
+import { participantLabels } from "./participantLabels";
 
 function includes(value: string | null | undefined, filter: string | undefined) {
   if (!filter) return true;
@@ -122,6 +123,9 @@ export async function getPublicMatchDetail(matchId: string) {
   if (!match || isHiddenR32(match)) return null;
   const scoreByParticipant = new Map(match.scoring.map((score) => [score.participantId, score]));
   const prediction = summarizePredictionDistribution(match.bets);
+  const labels = participantLabels(
+    new Map(match.bets.map((bet) => [bet.participantId, { alias: bet.participant.alias, departamento: bet.participant.departamento }]))
+  );
   return {
     match: {
       matchId: match.matchId,
@@ -145,7 +149,7 @@ export async function getPublicMatchDetail(matchId: string) {
       const score = scoreByParticipant.get(bet.participantId);
       return {
         participantId: bet.participantId,
-        alias: bet.participant.alias,
+        alias: labels.get(bet.participantId)!,
         slug: bet.participant.slug,
         departamento: bet.participant.departamento,
         rango: bet.participant.rango,

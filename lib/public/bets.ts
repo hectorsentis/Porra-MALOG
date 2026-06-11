@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import type { PublicFilters } from "./filters";
 import { predictionSign, summarizePredictionDistribution } from "./matchStats";
+import { participantLabels } from "./participantLabels";
 
 function includes(value: string | null | undefined, filter: string | undefined) {
   if (!filter) return true;
@@ -77,6 +78,10 @@ export async function getBonusBetInsights(filters: PublicFilters) {
     totalBets: filtered.length,
     champions: countValues(filtered.map((row) => row.campeon)),
     runnerUps: countValues(filtered.map((row) => row.subcampeon)),
+    semifinalist1: countValues(filtered.map((row) => row.semifinalista1)),
+    semifinalist2: countValues(filtered.map((row) => row.semifinalista2)),
+    semifinalist3: countValues(filtered.map((row) => row.semifinalista3)),
+    semifinalist4: countValues(filtered.map((row) => row.semifinalista4)),
     semifinalists: countValues(filtered.flatMap((row) => [row.semifinalista1, row.semifinalista2, row.semifinalista3, row.semifinalista4])),
     scorers: countValues(filtered.map((row) => row.maximoGoleador)),
     revelation: countValues(filtered.map((row) => row.equipoRevelacion)),
@@ -86,6 +91,7 @@ export async function getBonusBetInsights(filters: PublicFilters) {
     mostConceded: countValues(filtered.map((row) => row.seleccionMasGoleada)),
     leastConceded: countValues(filtered.map((row) => row.seleccionMenosGoleada)),
     totalGoals: statsNumber(totalGoals),
+    totalGoalsDistribution: countValues(totalGoals.map(String)),
     hype: rowsFromMap(hype),
     distrust: rowsFromMap(distrust)
   };
@@ -102,6 +108,7 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
       }
     },
     select: {
+      participantId: true,
       predHomeGoals: true,
       predAwayGoals: true,
       participant: { select: { alias: true, departamento: true, rango: true } },
@@ -113,8 +120,8 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
     return teamHit && includes(row.participant.alias, filters.alias) && includes(row.participant.departamento, filters.departamento) && includes(row.participant.rango, filters.rango);
   });
   const prediction = summarizePredictionDistribution(filtered);
-  const resultadistas = new Map<string, { goals: number; bets: number }>();
-  const amarrategui = new Map<string, number>();
+  const resultadistas = new Map<string, { alias: string; departamento: string | null; goals: number; bets: number }>();
+  const amarrategui = new Map<string, { alias: string; departamento: string | null; count: number }>();
   const trusted = new Map<string, number>();
   const despised = new Map<string, number>();
   const goalsFor = new Map<string, number>();
@@ -125,11 +132,15 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
     const homeName = row.match.homeTeam ?? row.match.homeTeamId;
     const awayName = row.match.awayTeam ?? row.match.awayTeamId;
     const goals = (row.predHomeGoals ?? 0) + (row.predAwayGoals ?? 0);
-    const player = resultadistas.get(row.participant.alias) ?? { goals: 0, bets: 0 };
+    const player = resultadistas.get(row.participantId) ?? { alias: row.participant.alias, departamento: row.participant.departamento, goals: 0, bets: 0 };
     player.goals += goals;
     player.bets += row.predHomeGoals == null || row.predAwayGoals == null ? 0 : 1;
-    resultadistas.set(row.participant.alias, player);
-    if (sign === "X") bump(amarrategui, row.participant.alias);
+    resultadistas.set(row.participantId, player);
+    if (sign === "X") {
+      const entry = amarrategui.get(row.participantId) ?? { alias: row.participant.alias, departamento: row.participant.departamento, count: 0 };
+      entry.count += 1;
+      amarrategui.set(row.participantId, entry);
+    }
     if (sign === "1") {
       bump(trusted, homeName);
       bump(despised, awayName);
@@ -146,14 +157,22 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
 
   const topResults = countValues(filtered.map((row) => row.predHomeGoals == null || row.predAwayGoals == null ? null : `${row.predHomeGoals}-${row.predAwayGoals}`));
   const complete = filtered.filter((row) => row.predHomeGoals != null && row.predAwayGoals != null);
+  const resultadistaLabels = participantLabels(resultadistas);
+  const amarrateguiLabels = participantLabels(amarrategui);
   return {
     totalBets: filtered.length,
     prediction,
     topResults,
     averageHomeGoals: complete.length ? Math.round((complete.reduce((sum, row) => sum + (row.predHomeGoals ?? 0), 0) / complete.length) * 100) / 100 : 0,
     averageAwayGoals: complete.length ? Math.round((complete.reduce((sum, row) => sum + (row.predAwayGoals ?? 0), 0) / complete.length) * 100) / 100 : 0,
-    resultadistas: [...resultadistas.entries()].map(([name, value]) => ({ name, value: value.bets ? Math.round((value.goals / value.bets) * 100) / 100 : 0 })).sort((a, b) => b.value - a.value).slice(0, 20),
-    amarrategui: rowsFromMap(amarrategui).slice(0, 20),
+    resultadistas: [...resultadistas.entries()]
+      .map(([id, value]) => ({ name: resultadistaLabels.get(id)!, value: value.bets ? Math.round((value.goals / value.bets) * 100) / 100 : 0 }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 20),
+    amarrategui: [...amarrategui.entries()]
+      .map(([id, value]) => ({ name: amarrateguiLabels.get(id)!, value: value.count }))
+      .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "es-ES"))
+      .slice(0, 20),
     trusted: rowsFromMap(trusted).slice(0, 20),
     despised: rowsFromMap(despised).slice(0, 20),
     goalsFor: rowsFromMap(goalsFor).slice(0, 20),
@@ -204,3 +223,4 @@ export async function getGroupClassificationBetInsights(filters: PublicFilters) 
     spainMorocco: table.filter((row) => ["ESP", "ESPANA", "ESPAÑA", "MAR", "MARRUECOS", "MOROCCO"].includes(row.team.toLocaleUpperCase("es-ES")))
   };
 }
+

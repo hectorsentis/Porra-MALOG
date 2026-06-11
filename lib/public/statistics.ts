@@ -32,12 +32,18 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
         participantId: true,
         campeon: true,
         subcampeon: true,
+        semifinalista1: true,
+        semifinalista2: true,
+        semifinalista3: true,
+        semifinalista4: true,
         maximoGoleador: true,
         seleccionMasGoleadora: true,
+        seleccionMenosGoleadora: true,
         seleccionMasGoleada: true,
         seleccionMenosGoleada: true,
         equipoRevelacion: true,
-        equipoDecepcion: true
+        equipoDecepcion: true,
+        totalGolesTorneo: true
       }
     }),
     prisma.scoringMatch.findMany({
@@ -98,6 +104,34 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     dispersion: Math.round(std(value.values) * 10) / 10,
     mvp: value.best
   }));
+
+
+  const rangeMap = new Map<string, { total: number; participants: number; values: number[]; best: string; bestPoints: number }>();
+  for (const row of ranking) {
+    const key = row.rango ?? "Sin rango";
+    const current = rangeMap.get(key) ?? { total: 0, participants: 0, values: [], best: row.alias, bestPoints: -1 };
+    current.total += row.pointsTotal;
+    current.participants += 1;
+    current.values.push(row.pointsTotal);
+    if (row.pointsTotal > current.bestPoints) {
+      current.best = row.alias;
+      current.bestPoints = row.pointsTotal;
+    }
+    rangeMap.set(key, current);
+  }
+
+  const ranges = [...rangeMap.entries()].map(([rango, value]) => ({
+    rango,
+    name: rango,
+    participants: value.participants,
+    total: value.total,
+    average: Math.round(value.total / value.participants),
+    averagePoints: Math.round(value.total / value.participants),
+    min: Math.min(...value.values),
+    max: Math.max(...value.values),
+    dispersion: Math.round(std(value.values) * 10) / 10,
+    mvp: value.best
+  })).sort((a, b) => b.average - a.average || a.rango.localeCompare(b.rango, "es-ES"));
 
   const scoreByParticipant = new Map<string, { exact: number; sign: number; diff: number; qualified: number; total: number }>();
   const filteredScoring = scoringMatches.filter((score) => {
@@ -173,8 +207,34 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     return [...counts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   };
 
+
+  const countTotalGoals = () => {
+    const values = filteredBetBonusRows
+      .map((bet) => bet.totalGolesTorneo)
+      .filter((value): value is number => typeof value === "number");
+    if (values.length === 0) return { average: 0, min: 0, max: 0, mode: 0, deviation: 0, distribution: [] as Array<{ name: string; value: number }> };
+    const distribution = [...values.reduce((map, value) => map.set(String(value), (map.get(String(value)) ?? 0) + 1), new Map<string, number>()).entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value || Number(a.name) - Number(b.name));
+    return {
+      average: Math.round(avg(values) * 10) / 10,
+      min: Math.min(...values),
+      max: Math.max(...values),
+      mode: Number(distribution[0]?.name ?? 0),
+      deviation: Math.round(std(values) * 10) / 10,
+      distribution
+    };
+  };
+
+  const mergeMarkets = (...markets: Array<Array<{ name: string; value: number }>>) => {
+    const counts = new Map<string, number>();
+    for (const market of markets) {
+      for (const item of market) counts.set(item.name, (counts.get(item.name) ?? 0) + item.value);
+    }
+    return [...counts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "es-ES"));
+  };
   const rarityByParticipant = filteredBetBonusRows.map((bet) => {
-    const picks = [bet.campeon, bet.subcampeon, bet.maximoGoleador, bet.seleccionMasGoleadora, bet.seleccionMasGoleada].filter(Boolean);
+    const picks = [bet.campeon, bet.subcampeon, bet.semifinalista1, bet.semifinalista2, bet.semifinalista3, bet.semifinalista4, bet.maximoGoleador, bet.seleccionMasGoleadora, bet.seleccionMenosGoleadora, bet.seleccionMasGoleada, bet.seleccionMenosGoleada, bet.equipoRevelacion, bet.equipoDecepcion].filter(Boolean);
     const popularity = picks.reduce((sum, pick) => sum + filteredBetBonusRows.filter((other) => Object.values(other).includes(pick)).length, 0);
     const rankingRow = classificationRows.find((row) => row.participantId === bet.participantId);
     return {
@@ -215,13 +275,23 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     accuracy,
     history,
     departments,
+    ranges,
     bets: {
       champions: countMarket("campeon"),
       runnerUps: countMarket("subcampeon"),
+      semifinalist1: countMarket("semifinalista1"),
+      semifinalist2: countMarket("semifinalista2"),
+      semifinalist3: countMarket("semifinalista3"),
+      semifinalist4: countMarket("semifinalista4"),
+      semifinalists: mergeMarkets(countMarket("semifinalista1"), countMarket("semifinalista2"), countMarket("semifinalista3"), countMarket("semifinalista4")),
       scorers: countMarket("maximoGoleador"),
       mostScoring: countMarket("seleccionMasGoleadora"),
+      leastScoring: countMarket("seleccionMenosGoleadora"),
       mostConceded: countMarket("seleccionMasGoleada"),
       leastConceded: countMarket("seleccionMenosGoleada"),
+      revelation: countMarket("equipoRevelacion"),
+      disappointment: countMarket("equipoDecepcion"),
+      totalGoals: countTotalGoals(),
       rarityByParticipant
     },
     volatility,
@@ -238,4 +308,6 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     participantIds: [...filteredParticipantIds]
   };
 }
+
+
 

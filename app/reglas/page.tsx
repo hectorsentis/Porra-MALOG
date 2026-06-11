@@ -3,6 +3,9 @@ import { PublicShell } from "@/components/shell/PublicShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { defaultRules } from "@/lib/game/rules";
 
+const maxKnockoutPoints = defaultRules.exactScore + defaultRules.qualifiedTeam + defaultRules.exactCrossing;
+const maxSpainKnockoutPoints = defaultRules.exactScore * defaultRules.spainMultiplier + defaultRules.qualifiedTeam + defaultRules.exactCrossing;
+
 const sections = [
   {
     title: "Partidos",
@@ -10,9 +13,19 @@ const sections = [
       ["Resultado exacto", defaultRules.exactScore],
       ["Diferencia correcta", defaultRules.correctGoalDiff],
       ["Signo correcto", defaultRules.correctSign],
+      ["Multiplicador partidos de Espana", `x${defaultRules.spainMultiplier}`]
+    ]
+  },
+  {
+    title: "Eliminatorias",
+    rows: [
+      ["Marcador exacto", defaultRules.exactScore],
+      ["Diferencia correcta", defaultRules.correctGoalDiff],
+      ["Signo correcto", defaultRules.correctSign],
       ["Clasificado correcto", defaultRules.qualifiedTeam],
       ["Cruce exacto", defaultRules.exactCrossing],
-      ["Multiplicador partidos de Espana", `x${defaultRules.spainMultiplier}`]
+      ["Maximo por partido KO", maxKnockoutPoints],
+      ["Maximo KO con Espana", maxSpainKnockoutPoints]
     ]
   },
   {
@@ -45,7 +58,7 @@ export default function ReglasPage() {
   return (
     <PublicShell>
       <PageTitle title="Reglas" subtitle="Puntuacion oficial aplicada al recalculo de la porra." />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         {sections.map((section) => (
           <Card key={section.title}>
             <CardHeader><CardTitle>{section.title}</CardTitle></CardHeader>
@@ -65,3 +78,5 @@ export default function ReglasPage() {
     </PublicShell>
   );
 }
+
+

@@ -52,6 +52,69 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   return <Card><CardContent><p className="text-xs font-semibold uppercase text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold">{value}</p></CardContent></Card>;
 }
 
+type GoalsStat = {
+  average: number;
+  min: number;
+  max: number;
+  mode: number;
+  deviation: number;
+};
+
+type GoalsDistributionRow = { name: string; value: number };
+
+function buildGoalBuckets(rows: GoalsDistributionRow[], bucketSize = 10) {
+  const buckets = new Map<number, number>();
+  for (const row of rows) {
+    const goals = Number(row.name);
+    if (!Number.isFinite(goals)) continue;
+    const start = Math.floor(goals / bucketSize) * bucketSize;
+    buckets.set(start, (buckets.get(start) ?? 0) + row.value);
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([start, value]) => ({ name: `${start}-${start + bucketSize - 1}`, value }));
+}
+
+function TotalGoalsCard({ stats, distribution }: { stats: GoalsStat; distribution: GoalsDistributionRow[] }) {
+  const buckets = buildGoalBuckets(distribution);
+  const maxValue = Math.max(1, ...buckets.map((row) => row.value));
+  const topExact = distribution.slice(0, 5);
+  return (
+    <Card className="lg:col-span-3">
+      <CardHeader>
+        <CardTitle>Total goles torneo</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Media</p><p className="mt-1 text-2xl font-bold text-slate-950">{stats.average}</p></div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Moda</p><p className="mt-1 text-2xl font-bold text-slate-950">{stats.mode}</p></div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Minimo</p><p className="mt-1 text-2xl font-bold text-slate-950">{stats.min}</p></div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Maximo</p><p className="mt-1 text-2xl font-bold text-slate-950">{stats.max}</p></div>
+          <div className="col-span-2 rounded-md border border-slate-200 bg-white p-3">
+            <p className="text-xs font-semibold uppercase text-slate-500">Valores mas repetidos</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {topExact.length > 0 ? topExact.map((row) => <span key={row.name} className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">{row.name}: {row.value}</span>) : <span className="text-xs text-slate-500">Sin apuestas registradas.</span>}
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {buckets.length > 0 ? buckets.map((row) => (
+            <div key={row.name} className="grid grid-cols-[72px_minmax(0,1fr)_36px] items-center gap-3 text-sm">
+              <span className="font-semibold text-slate-600">{row.name}</span>
+              <div className="h-7 overflow-hidden rounded-md bg-slate-100">
+                <div className="flex h-full items-center rounded-md bg-primary px-2 text-xs font-semibold text-white" style={{ width: `${Math.max(8, Math.round((row.value / maxValue) * 100))}%` }}>
+                  {row.value}
+                </div>
+              </div>
+              <span className="text-right text-xs font-semibold text-slate-500">{Math.round((row.value / maxValue) * 100)}%</span>
+            </div>
+          )) : <p className="text-sm text-slate-600">Sin apuestas registradas.</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default async function ApuestasPage({
   searchParams
 }: {
@@ -64,6 +127,24 @@ export default async function ApuestasPage({
     activeTab === "grupos" ? getGroupMatchBetInsights(filters) : Promise.resolve(null),
     activeTab === "clasificacion" ? getGroupClassificationBetInsights(filters) : Promise.resolve(null)
   ]);
+  const bonusCharts = bonus ? [
+    ["Campeon", bonus.champions],
+    ["Subcampeon", bonus.runnerUps],
+    ["Semifinalistas", bonus.semifinalists],
+    ["Semifinalista 1", bonus.semifinalist1],
+    ["Semifinalista 2", bonus.semifinalist2],
+    ["Semifinalista 3", bonus.semifinalist3],
+    ["Semifinalista 4", bonus.semifinalist4],
+    ["Maximo goleador", bonus.scorers],
+    ["Seleccion mas goleadora", bonus.mostScoring],
+    ["Seleccion menos goleadora", bonus.leastScoring],
+    ["Seleccion mas goleada", bonus.mostConceded],
+    ["Seleccion menos goleada", bonus.leastConceded],
+    ["Equipo revelacion", bonus.revelation],
+    ["Equipo decepcion", bonus.disappointment],
+    ["Hype score", bonus.hype],
+    ["Desconfianza", bonus.distrust]
+  ] as const : [];
 
   return (
     <PublicShell>
@@ -85,12 +166,13 @@ export default async function ApuestasPage({
             <Stat label="Moda goles" value={bonus.totalGoals.mode} />
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card><CardHeader><CardTitle>Campeon</CardTitle></CardHeader><CardContent><SimpleBarChart data={bonus.champions.slice(0, 10)} /></CardContent></Card>
-            <Card><CardHeader><CardTitle>Subcampeon</CardTitle></CardHeader><CardContent><SimpleBarChart data={bonus.runnerUps.slice(0, 10)} /></CardContent></Card>
-            <Card><CardHeader><CardTitle>Semifinalistas</CardTitle></CardHeader><CardContent><SimpleBarChart data={bonus.semifinalists.slice(0, 10)} /></CardContent></Card>
-            <Card><CardHeader><CardTitle>Equipo revelacion</CardTitle></CardHeader><CardContent><SimpleBarChart data={bonus.revelation.slice(0, 10)} /></CardContent></Card>
-            <Card><CardHeader><CardTitle>Equipo decepcion</CardTitle></CardHeader><CardContent><SimpleBarChart data={bonus.disappointment.slice(0, 10)} /></CardContent></Card>
-            <Card><CardHeader><CardTitle>Hype score</CardTitle></CardHeader><CardContent><SimpleBarChart data={bonus.hype.slice(0, 10)} /></CardContent></Card>
+            <TotalGoalsCard stats={bonus.totalGoals} distribution={bonus.totalGoalsDistribution} />
+            {bonusCharts.map(([title, chartData]) => (
+              <Card key={title}>
+                <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+                <CardContent>{chartData.length > 0 ? <SimpleBarChart data={chartData.slice(0, 10)} /> : <p className="text-sm text-slate-600">Sin apuestas registradas.</p>}</CardContent>
+              </Card>
+            ))}
           </div>
         </section>
       ) : null}
@@ -141,3 +223,5 @@ export default async function ApuestasPage({
     </PublicShell>
   );
 }
+
+

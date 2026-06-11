@@ -19,7 +19,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-air-page">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/admin" className="flex items-center gap-2 font-display font-bold uppercase tracking-wide text-primary"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[#FFFFFF] p-1.5 shadow-card"><Image src="/assets/Rokiski azul.svg" alt="Logo PORRA MUNDIAL 2026 MALOG" width={36} height={36} className="h-full w-full object-contain" /></span><span>Admin PORRA MALOG</span></Link>
+          <Link href="/admin" className="flex items-center gap-2 font-display font-bold uppercase tracking-wide text-primary"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[#FFFFFF] p-1.5 shadow-card"><Image src="/assets/official-logo.svg" alt="Logo PORRA MUNDIAL 2026 MALOG" width={36} height={36} className="h-full w-full object-contain" /></span><span>Admin PORRA MALOG</span></Link>
           <form action={logoutAction}><Button variant="secondary">Salir</Button></form>
         </div>
       </header>
@@ -34,5 +34,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
 
 

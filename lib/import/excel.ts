@@ -202,26 +202,76 @@ function matchHoraDisplayMap(workbook: XLSX.WorkBook): Map<string, string> {
   return result;
 }
 
-function rowsByHeader(workbook: XLSX.WorkBook, sheetName: string, requiredHeaders: string[]): Record<string, unknown>[] {
-  const sheet = workbook.Sheets[sheetName];
-  if (!sheet) return [];
-  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: null });
+type TableInfo = { sheetName: string; ref: string };
 
-  let headerRowNumber = -1;
-  let headers: string[] = [];
-  for (let rowNumber = 0; rowNumber < Math.min(matrix.length, 20); rowNumber += 1) {
-    const candidates = matrix[rowNumber].map((value) => text(value) ?? "");
-    if (requiredHeaders.every((header) => candidates.includes(header))) {
-      headerRowNumber = rowNumber;
-      headers = candidates;
-      break;
-    }
+function attr(tag: string, name: string): string | null {
+  const match = tag.match(new RegExp(`${name}="([^"]*)"`));
+  return match ? match[1] : null;
+}
+
+function fileText(workbook: XLSX.WorkBook, path: string): string | null {
+  const file = (workbook as unknown as { files?: Record<string, { content?: Buffer | string }> }).files?.[path];
+  if (!file?.content) return null;
+  return Buffer.isBuffer(file.content) ? file.content.toString("utf-8") : String(file.content);
+}
+
+/**
+ * Several sheets (e.g. 02_PARTICIPANTES) place multiple Excel Tables side by
+ * side, sharing column names like "Alias" or "Pagado" between an unrelated
+ * tracking table and the real data table. Reading by sheet name + header row
+ * conflates them, so we resolve each named Table's sheet and cell range
+ * (its "ref", e.g. "A1:M48") from the workbook's table/relationship XML and
+ * read only that range.
+ */
+function loadTableMap(workbook: XLSX.WorkBook): Map<string, TableInfo> {
+  const tableMap = new Map<string, TableInfo>();
+  const workbookXml = fileText(workbook, "xl/workbook.xml") ?? "";
+  const workbookRelsXml = fileText(workbook, "xl/_rels/workbook.xml.rels") ?? "";
+
+  const sheetNameToRid = new Map<string, string>();
+  for (const match of workbookXml.matchAll(/<sheet\b[^>]*\/>/g)) {
+    const name = attr(match[0], "name");
+    const rid = attr(match[0], "r:id");
+    if (name && rid) sheetNameToRid.set(name, rid);
   }
 
-  if (headerRowNumber === -1) return [];
+  const ridToTarget = new Map<string, string>();
+  for (const match of workbookRelsXml.matchAll(/<Relationship\b[^>]*\/>/g)) {
+    const id = attr(match[0], "Id");
+    const target = attr(match[0], "Target");
+    if (id && target) ridToTarget.set(id, target);
+  }
+
+  for (const [sheetName, rid] of sheetNameToRid) {
+    const target = ridToTarget.get(rid);
+    if (!target) continue;
+    const sheetFileName = target.split("/").pop()!;
+    const sheetRelsXml = fileText(workbook, `xl/worksheets/_rels/${sheetFileName}.rels`) ?? "";
+    for (const match of sheetRelsXml.matchAll(/<Relationship\b[^>]*\/>/g)) {
+      const relTarget = attr(match[0], "Target");
+      if (!relTarget?.includes("/tables/")) continue;
+      const tableXml = fileText(workbook, `xl/${relTarget.replace(/^\.\.\//, "")}`);
+      const tableTag = tableXml?.match(/<table\b[^>]*>/)?.[0];
+      if (!tableTag) continue;
+      const tableName = attr(tableTag, "name");
+      const ref = attr(tableTag, "ref");
+      if (tableName && ref) tableMap.set(tableName, { sheetName, ref });
+    }
+  }
+  return tableMap;
+}
+
+function rowsByTable(workbook: XLSX.WorkBook, tableMap: Map<string, TableInfo>, tableName: string): Record<string, unknown>[] {
+  const info = tableMap.get(tableName);
+  if (!info) return [];
+  const sheet = workbook.Sheets[info.sheetName];
+  if (!sheet) return [];
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: null, range: info.ref });
+  if (matrix.length === 0) return [];
+  const headers = matrix[0].map((value) => text(value) ?? "");
 
   const rows: Record<string, unknown>[] = [];
-  for (let rowNumber = headerRowNumber + 1; rowNumber < matrix.length; rowNumber += 1) {
+  for (let rowNumber = 1; rowNumber < matrix.length; rowNumber += 1) {
     const values = matrix[rowNumber];
     const record: Record<string, unknown> = {};
     let hasValue = false;
@@ -264,15 +314,16 @@ function ensureUniqueSlugs<T extends { slug: string; participantId: string }>(ro
 }
 
 export async function parseExcelWorkbook(input: Buffer, filename: string): Promise<ParsedWorkbook & ExcelImportPreview> {
-  const workbook = XLSX.read(input, { type: "buffer", cellDates: true });
+  const workbook = XLSX.read(input, { type: "buffer", cellDates: true, bookFiles: true });
+  const tableMap = loadTableMap(workbook);
 
-  const participantRows = rowsByHeader(workbook, "02_PARTICIPANTES", ["Participant_ID", "Alias"]);
-  const teamRows = rowsByHeader(workbook, "03_TEAMS", ["Team_ID", "Seleccion"]);
-  const matchRows = rowsByHeader(workbook, "04_MATCHES", ["Match_ID", "Home_Team_ID", "Away_Team_ID"]);
-  const betMatchRows = rowsByHeader(workbook, "06_BETS_MATCHES", ["Match_ID", "Participant_ID"]);
-  const groupBetRows = rowsByHeader(workbook, "06_BETS_GROUP_POSITION", ["Grupo", "Participant_ID"]);
-  const bonusBetRows = rowsByHeader(workbook, "06_BETS_BONUS", ["Participant_ID", "Alias"]);
-  const classificationRows = rowsByHeader(workbook, "09_CLASIFICACION_GENERAL", ["Pos", "Participant_ID", "Points_Total"]);
+  const participantRows = rowsByTable(workbook, tableMap, "tbl_participantes");
+  const teamRows = rowsByTable(workbook, tableMap, "tbl_teams");
+  const matchRows = rowsByTable(workbook, tableMap, "tbl_matches");
+  const betMatchRows = rowsByTable(workbook, tableMap, "tbl_bets_matches");
+  const groupBetRows = rowsByTable(workbook, tableMap, "tbl_bets_group_positions");
+  const bonusBetRows = rowsByTable(workbook, tableMap, "tbl_bets_bonus");
+  const classificationRows = rowsByTable(workbook, tableMap, "tbl_clasificacion_general");
 
   const warnings = [
     ...requiredMissing(participantRows, ["Participant_ID", "Alias"]),
@@ -507,6 +558,16 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       await tx.betMatch.deleteMany();
       await tx.betGroupPosition.deleteMany();
       await tx.betBonus.deleteMany();
+      // Free up every slug behind a temporary placeholder first, since the new
+      // slugs can be reassigned between participants (e.g. alias corrections)
+      // and `slug` is unique — upserting in array order could otherwise collide
+      // with another participant's not-yet-updated current slug.
+      for (const participant of parsed.participants) {
+        await tx.participant.updateMany({
+          where: { participantId: participant.participantId },
+          data: { slug: `__import_${participant.participantId}` }
+        });
+      }
       for (const participant of parsed.participants) {
         const { participantId, ...participantData } = participant;
         await tx.participant.upsert({
