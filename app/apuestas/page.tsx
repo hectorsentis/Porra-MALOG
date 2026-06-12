@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { CountryLabel } from "@/components/CountryLabel";
 import { FilterChips } from "@/components/FilterChips";
 import { PageTitle } from "@/components/PageTitle";
 import { PublicFiltersForm } from "@/components/PublicFiltersForm";
@@ -184,7 +185,7 @@ function ResultVotesTable({ result, rows }: { result?: string; rows: ResultVoteR
                   <td className="px-3 py-2 font-semibold"><Link className="text-primary hover:underline" href={`/participantes/${row.slug}`}>{row.alias}</Link></td>
                   <td className="px-3 py-2">{row.departamento ?? "-"}</td>
                   <td className="px-3 py-2">{row.rango ?? "-"}</td>
-                  <td className="px-3 py-2">{row.homeTeam ?? "Local"} - {row.awayTeam ?? "Visitante"}</td>
+                  <td className="px-3 py-2">{row.homeTeam ? <CountryLabel value={row.homeTeam} /> : "Local"} - {row.awayTeam ? <CountryLabel value={row.awayTeam} /> : "Visitante"}</td>
                   <td className="px-3 py-2">{row.fase ?? row.jornadaId ?? row.grupo ?? "-"}</td>
                 </tr>
               ))}
@@ -293,7 +294,7 @@ export default async function ApuestasPage({
               <div className="overflow-x-auto rounded-lg border border-slate-200">
                 <table className="w-full min-w-[720px] text-sm">
                   <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="px-3 py-2">Equipo</th><th className="px-3 py-2">Media pos.</th><th className="px-3 py-2">1o</th><th className="px-3 py-2">2o</th><th className="px-3 py-2">3o</th><th className="px-3 py-2">4o</th><th className="px-3 py-2">Confianza</th></tr></thead>
-                  <tbody>{groupClassification.table.slice(0, 30).map((row) => <tr key={row.team} className="border-t border-slate-100"><td className="px-3 py-2 font-semibold">{row.team}</td><td className="px-3 py-2">{row.averagePos}</td><td className="px-3 py-2">{row.first}</td><td className="px-3 py-2">{row.second}</td><td className="px-3 py-2">{row.third}</td><td className="px-3 py-2">{row.fourth}</td><td className="px-3 py-2">{row.confidence}</td></tr>)}</tbody>
+                  <tbody>{groupClassification.table.slice(0, 30).map((row) => <tr key={row.team} className="border-t border-slate-100"><td className="px-3 py-2 font-semibold"><CountryLabel value={row.team} /></td><td className="px-3 py-2">{row.averagePos}</td><td className="px-3 py-2">{row.first}</td><td className="px-3 py-2">{row.second}</td><td className="px-3 py-2">{row.third}</td><td className="px-3 py-2">{row.fourth}</td><td className="px-3 py-2">{row.confidence}</td></tr>)}</tbody>
                 </table>
               </div>
             </CardContent>

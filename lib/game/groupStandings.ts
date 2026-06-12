@@ -207,7 +207,20 @@ export function computeGroupStandings(matches: GroupMatchInput[], teams: GroupTe
     }
   }
 
-  const standings = [...standingsByGroup.values()].flat().map(({ tieBreakerRank: _tieBreakerRank, ...row }) => row);
+  const standings = [...standingsByGroup.values()].flat().map((row) => ({
+    grupo: row.grupo,
+    teamId: row.teamId,
+    pos: row.pos,
+    pj: row.pj,
+    pg: row.pg,
+    pe: row.pe,
+    pp: row.pp,
+    gf: row.gf,
+    gc: row.gc,
+    dg: row.dg,
+    pts: row.pts,
+    qualified: row.qualified
+  }));
 
   return { standings, completeGroups, groupStageComplete };
 }

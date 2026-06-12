@@ -1,4 +1,5 @@
-﻿import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
+import { formatCountry } from "@/lib/countries";
 import type { PublicFilters } from "./filters";
 import { toPublicClassificationRow } from "./mappers";
 
@@ -202,7 +203,8 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     for (const bet of filteredBetBonusRows) {
       const value = bet[field];
       if (typeof value !== "string" || !value) continue;
-      counts.set(value, (counts.get(value) ?? 0) + 1);
+      const displayName = field === "maximoGoleador" ? value : formatCountry(null, value);
+      counts.set(displayName, (counts.get(displayName) ?? 0) + 1);
     }
     return [...counts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   };

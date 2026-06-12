@@ -1,5 +1,6 @@
-﻿import { unstable_noStore as noStore } from "next/cache";
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { formatCountry } from "@/lib/countries";
 import type { PublicFilters } from "./filters";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -164,7 +165,7 @@ export async function getDailyEvolution(filters: PublicFilters) {
     if (!score.match.fecha) continue;
     if (!includes(score.participant.alias, filters.alias) || !includes(score.participant.departamento, filters.departamento) || !includes(score.participant.rango, filters.rango)) continue;
     if (filters.equipo) {
-      const matchTeamHit = includes(score.match.homeTeam, filters.equipo) || includes(score.match.awayTeam, filters.equipo) || includes(score.match.homeTeamId, filters.equipo) || includes(score.match.awayTeamId, filters.equipo);
+      const matchTeamHit = includes(score.match.homeTeam, filters.equipo) || includes(score.match.awayTeam, filters.equipo) || includes(score.match.homeTeamId, filters.equipo) || includes(score.match.awayTeamId, filters.equipo) || includes(formatCountry(score.match.homeTeamId, score.match.homeTeam), filters.equipo) || includes(formatCountry(score.match.awayTeamId, score.match.awayTeam), filters.equipo);
       if (!matchTeamHit) continue;
     }
     const day = isoDay(score.match.fecha);
@@ -208,5 +209,71 @@ export async function getDailyEvolution(filters: PublicFilters) {
     topAlias: row.topAlias,
     topPoints: row.topPoints
   })).sort((a, b) => a.day.localeCompare(b.day));
+}
+
+export type ParticipantEvolutionPoint = {
+  day: string;
+  [alias: string]: string | number;
+};
+
+export async function getParticipantPointsEvolution(filters: PublicFilters) {
+  noStore();
+  const rows = await prisma.scoringMatch.findMany({
+    where: {
+      match: {
+        status: "OFFICIAL",
+        finished: true,
+        fecha: { not: null },
+        ...(filters.fase ? { fase: { contains: filters.fase, mode: "insensitive" } } : {}),
+        ...(filters.jornada ? { jornadaId: { contains: filters.jornada, mode: "insensitive" } } : {}),
+        ...(filters.grupo ? { grupo: { contains: filters.grupo, mode: "insensitive" } } : {})
+      }
+    },
+    select: {
+      participantId: true,
+      pointsTotal: true,
+      participant: { select: { alias: true, departamento: true, rango: true } },
+      match: { select: { fecha: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true } }
+    },
+    orderBy: { match: { fecha: "asc" } }
+  });
+
+  const byDayParticipant = new Map<string, Map<string, number>>();
+  const aliasById = new Map<string, string>();
+  for (const score of rows) {
+    if (!score.match.fecha) continue;
+    if (!includes(score.participant.alias, filters.alias) || !includes(score.participant.departamento, filters.departamento) || !includes(score.participant.rango, filters.rango)) continue;
+    if (filters.equipo) {
+      const matchTeamHit = includes(score.match.homeTeam, filters.equipo) || includes(score.match.awayTeam, filters.equipo) || includes(score.match.homeTeamId, filters.equipo) || includes(score.match.awayTeamId, filters.equipo) || includes(formatCountry(score.match.homeTeamId, score.match.homeTeam), filters.equipo) || includes(formatCountry(score.match.awayTeamId, score.match.awayTeam), filters.equipo);
+      if (!matchTeamHit) continue;
+    }
+    const day = isoDay(score.match.fecha);
+    aliasById.set(score.participantId, score.participant.alias);
+    const dayMap = byDayParticipant.get(day) ?? new Map<string, number>();
+    dayMap.set(score.participantId, (dayMap.get(score.participantId) ?? 0) + score.pointsTotal);
+    byDayParticipant.set(day, dayMap);
+  }
+
+  const days = [...byDayParticipant.keys()].sort();
+  const participantIds = [...aliasById.keys()];
+
+  const cumulative = new Map<string, number>();
+  const rows_: ParticipantEvolutionPoint[] = days.map((day) => {
+    const dayMap = byDayParticipant.get(day)!;
+    const point: ParticipantEvolutionPoint = { day };
+    for (const participantId of participantIds) {
+      const total = (cumulative.get(participantId) ?? 0) + (dayMap.get(participantId) ?? 0);
+      cumulative.set(participantId, total);
+      point[aliasById.get(participantId)!] = total;
+    }
+    return point;
+  });
+
+  const participants = participantIds
+    .map((id) => ({ alias: aliasById.get(id)!, total: cumulative.get(id) ?? 0 }))
+    .sort((a, b) => b.total - a.total || a.alias.localeCompare(b.alias, "es-ES"))
+    .map((row) => row.alias);
+
+  return { rows: rows_, participants };
 }
 

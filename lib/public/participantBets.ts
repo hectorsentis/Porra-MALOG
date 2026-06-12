@@ -1,5 +1,6 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { formatCountry, formatCountryOrNull } from "@/lib/countries";
 import { predictionSign } from "./matchStats";
 
 function statusLabel(status: string) {
@@ -117,16 +118,16 @@ export async function getPublicParticipantBets(participantId: string): Promise<P
         jornadaId: match.jornadaId,
         fecha: match.fecha?.toISOString() ?? null,
         hora: match.hora,
-        homeTeam: match.homeTeam ?? match.homeTeamId ?? match.homeSlot ?? "Local",
-        awayTeam: match.awayTeam ?? match.awayTeamId ?? match.awaySlot ?? "Visitante",
+        homeTeam: formatCountry(match.homeTeamId, match.homeTeam ?? match.homeSlot ?? "Local"),
+        awayTeam: formatCountry(match.awayTeamId, match.awayTeam ?? match.awaySlot ?? "Visitante"),
         status: match.status,
         statusLabel: statusLabel(match.status),
         prediction: bet.predHomeGoals == null || bet.predAwayGoals == null ? "-" : `${bet.predHomeGoals}-${bet.predAwayGoals}`,
         predSign: predictionSign(bet.predHomeGoals, bet.predAwayGoals),
-        predQualifiedTeamId: bet.predQualifiedTeamId,
+        predQualifiedTeamId: formatCountryOrNull(bet.predQualifiedTeamId, bet.predQualifiedTeamId),
         resultText: isOfficial ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
         realSign: isOfficial ? predictionSign(match.homeGoals, match.awayGoals) : "Pendiente",
-        qualifiedTeamId: isOfficial ? match.overrideQualifiedTeamId ?? match.qualifiedTeamId : null,
+        qualifiedTeamId: isOfficial ? formatCountryOrNull(match.overrideQualifiedTeamId ?? match.qualifiedTeamId, match.overrideQualifiedTeamId ?? match.qualifiedTeamId) : null,
         score: score
           ? {
               exactOk: score.exactOk,
@@ -149,23 +150,23 @@ export async function getPublicParticipantBets(participantId: string): Promise<P
     });
 
   const groups: ParticipantGroupBet[] = groupBets
-    .map((bet) => ({ grupo: bet.grupo, predPos: bet.predPos, predTeamId: bet.predTeamId }))
+    .map((bet) => ({ grupo: bet.grupo, predPos: bet.predPos, predTeamId: formatCountry(bet.predTeamId, bet.predTeamId) }))
     .sort((a, b) => a.grupo.localeCompare(b.grupo, "es-ES") || a.predPos - b.predPos);
 
   const bonus: ParticipantBonusBet | null = bonusBet
     ? {
-        campeon: bonusBet.campeon,
-        subcampeon: bonusBet.subcampeon,
-        semifinalistas: [bonusBet.semifinalista1, bonusBet.semifinalista2, bonusBet.semifinalista3, bonusBet.semifinalista4].filter(
+        campeon: formatCountryOrNull(null, bonusBet.campeon),
+        subcampeon: formatCountryOrNull(null, bonusBet.subcampeon),
+        semifinalistas: [bonusBet.semifinalista1, bonusBet.semifinalista2, bonusBet.semifinalista3, bonusBet.semifinalista4].map((value) => formatCountryOrNull(null, value)).filter(
           (value): value is string => Boolean(value)
         ),
         maximoGoleador: bonusBet.maximoGoleador,
-        seleccionMasGoleadora: bonusBet.seleccionMasGoleadora,
-        seleccionMasGoleada: bonusBet.seleccionMasGoleada,
-        seleccionMenosGoleadora: bonusBet.seleccionMenosGoleadora,
-        seleccionMenosGoleada: bonusBet.seleccionMenosGoleada,
-        equipoRevelacion: bonusBet.equipoRevelacion,
-        equipoDecepcion: bonusBet.equipoDecepcion,
+        seleccionMasGoleadora: formatCountryOrNull(null, bonusBet.seleccionMasGoleadora),
+        seleccionMasGoleada: formatCountryOrNull(null, bonusBet.seleccionMasGoleada),
+        seleccionMenosGoleadora: formatCountryOrNull(null, bonusBet.seleccionMenosGoleadora),
+        seleccionMenosGoleada: formatCountryOrNull(null, bonusBet.seleccionMenosGoleada),
+        equipoRevelacion: formatCountryOrNull(null, bonusBet.equipoRevelacion),
+        equipoDecepcion: formatCountryOrNull(null, bonusBet.equipoDecepcion),
         totalGolesTorneo: bonusBet.totalGolesTorneo
       }
     : null;

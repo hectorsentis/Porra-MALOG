@@ -1,5 +1,6 @@
-﻿import { unstable_noStore as noStore } from "next/cache";
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { formatCountry, formatCountryOrNull } from "@/lib/countries";
 import type { MatchStatus } from "@prisma/client";
 import type { PublicFilters } from "./filters";
 import { summarizePredictionDistribution } from "./matchStats";
@@ -75,6 +76,8 @@ export async function getPublicMatches(filters: PublicFilters = {}) {
       !filters.equipo ||
       includes(match.homeTeam, filters.equipo) ||
       includes(match.awayTeam, filters.equipo) ||
+      includes(formatCountry(match.homeTeamId, match.homeTeam), filters.equipo) ||
+      includes(formatCountry(match.awayTeamId, match.awayTeam), filters.equipo) ||
       includes(match.homeTeamId, filters.equipo) ||
       includes(match.awayTeamId, filters.equipo)
     )
@@ -90,12 +93,12 @@ export async function getPublicMatches(filters: PublicFilters = {}) {
         jornadaId: match.jornadaId,
         fecha: match.fecha?.toISOString() ?? null,
         hora: match.hora,
-        homeTeam: match.homeTeam ?? match.homeTeamId ?? match.homeSlot ?? "Local",
-        awayTeam: match.awayTeam ?? match.awayTeamId ?? match.awaySlot ?? "Visitante",
+        homeTeam: formatCountry(match.homeTeamId, match.homeTeam ?? match.homeSlot ?? "Local"),
+        awayTeam: formatCountry(match.awayTeamId, match.awayTeam ?? match.awaySlot ?? "Visitante"),
         status: match.status,
         statusLabel: statusLabel(match.status),
         resultText: match.status === "OFFICIAL" ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
-        qualifiedTeamId: match.status === "OFFICIAL" ? match.qualifiedTeamId ?? match.overrideQualifiedTeamId : null,
+        qualifiedTeamId: match.status === "OFFICIAL" ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null,
         pointsDistributed,
         exactScores,
         prediction
@@ -135,12 +138,12 @@ export async function getPublicMatchDetail(matchId: string) {
       jornadaId: match.jornadaId,
       fecha: match.fecha?.toISOString() ?? null,
       hora: match.hora,
-      homeTeam: match.homeTeam ?? match.homeTeamId ?? match.homeSlot ?? "Local",
-      awayTeam: match.awayTeam ?? match.awayTeamId ?? match.awaySlot ?? "Visitante",
+      homeTeam: formatCountry(match.homeTeamId, match.homeTeam ?? match.homeSlot ?? "Local"),
+      awayTeam: formatCountry(match.awayTeamId, match.awayTeam ?? match.awaySlot ?? "Visitante"),
       status: match.status,
       statusLabel: statusLabel(match.status),
       resultText: match.status === "OFFICIAL" ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
-      qualifiedTeamId: match.status === "OFFICIAL" ? match.qualifiedTeamId ?? match.overrideQualifiedTeamId : null
+      qualifiedTeamId: match.status === "OFFICIAL" ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null
     },
     prediction,
     pointsDistributed: match.scoring.reduce((sum, score) => sum + score.pointsTotal, 0),
@@ -154,7 +157,7 @@ export async function getPublicMatchDetail(matchId: string) {
         departamento: bet.participant.departamento,
         rango: bet.participant.rango,
         prediction: bet.predHomeGoals == null || bet.predAwayGoals == null ? "-" : `${bet.predHomeGoals}-${bet.predAwayGoals}`,
-        predQualifiedTeamId: bet.predQualifiedTeamId,
+        predQualifiedTeamId: formatCountryOrNull(bet.predQualifiedTeamId, bet.predQualifiedTeamId),
         pointsTotal: score?.pointsTotal ?? 0,
         exactOk: score?.exactOk ?? false,
         signOk: score?.signOk ?? false,

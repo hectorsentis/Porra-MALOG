@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { metadataForRule } from "@/lib/game/ruleConfig";
+import { countryCatalog, countryForTeam, normalizeCountryFlag, normalizeCountryName } from "@/lib/countries";
 
 const participantSchema = z.object({
   participantId: z.string().min(1),
@@ -118,6 +119,7 @@ export type ExcelImportPreview = {
 type ParsedWorkbook = {
   participants: z.infer<typeof participantSchema>[];
   teams: z.infer<typeof teamSchema>[];
+  countries: typeof countryCatalog;
   matches: z.infer<typeof matchSchema>[];
   betMatches: Record<string, unknown>[];
   groupBets: Record<string, unknown>[];
@@ -169,7 +171,7 @@ function activeRule(value: unknown): boolean {
 }
 function bool(value: unknown): boolean {
   const raw = text(value)?.toLowerCase();
-  return ["true", "1", "yes", "si", "sÃƒÂ­", "x", "finished", "finalizado"].includes(raw ?? "");
+  return ["true", "1", "yes", "si", "sÃƒÆ’Ã‚Â­", "x", "finished", "finalizado"].includes(raw ?? "");
 }
 
 /**
@@ -385,18 +387,23 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
     .filter((row) => row.participantId && row.alias);
 
   const teams = teamRows
-    .map((row) => ({
-      teamId: text(row.Team_ID) ?? "",
-      pais: text(row.Pais),
-      seleccion: text(row.Seleccion) ?? "",
-      grupo: text(row.Grupo),
-      ordenGrupo: number(row.Orden_Grupo),
-      confederacion: text(row.Confederacion),
-      tieBreakerRank: number(row.TieBreaker_Rank),
-      fifaRank: number(row.FIFA_Rank),
-      comentarios: text(row.Comentarios),
-      flag: text(row.Flag)
-    }))
+    .map((row) => {
+      const teamId = text(row.Team_ID) ?? "";
+      const rawName = text(row.Seleccion);
+      const country = countryForTeam(teamId, rawName);
+      return {
+        teamId,
+        pais: country?.nameEs ?? normalizeCountryName(teamId, text(row.Pais)),
+        seleccion: country?.nameEs ?? normalizeCountryName(teamId, rawName) ?? "",
+        grupo: text(row.Grupo),
+        ordenGrupo: number(row.Orden_Grupo),
+        confederacion: text(row.Confederacion),
+        tieBreakerRank: number(row.TieBreaker_Rank),
+        fifaRank: number(row.FIFA_Rank),
+        comentarios: text(row.Comentarios),
+        flag: country?.flagEmoji ?? normalizeCountryFlag(teamId, rawName) ?? text(row.Flag)
+      };
+    })
     .map((row, index) => {
       const parsed = teamSchema.safeParse(row);
       if (!parsed.success) warnings.push(`Team row ${index + 1}: ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
@@ -424,8 +431,8 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
         awayTeamIdManual: text(row.Away_Team_ID_Manual),
         homeTeamId,
         awayTeamId,
-        homeTeam: text(row.Home_Team),
-        awayTeam: text(row.Away_Team),
+        homeTeam: normalizeCountryName(homeTeamId, text(row.Home_Team)),
+        awayTeam: normalizeCountryName(awayTeamId, text(row.Away_Team)),
         homeGoals: number(row.Home_Goals),
         awayGoals: number(row.Away_Goals),
         homePens: number(row.Home_Pens),
@@ -547,6 +554,7 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
     dryRun: true,
     participants,
     teams,
+    countries: countryCatalog,
     matches,
     betMatches: betMatchRows,
     groupBets: groupBetRows,
@@ -556,6 +564,7 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
     counts: {
       participants: participants.length,
       teams: teams.length,
+      countries: countryCatalog.length,
       matches: matches.length,
       betMatches: betMatchRows.length,
       groupBets: groupBetRows.length,
@@ -603,7 +612,7 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       await tx.betBonus.deleteMany();
       // Free up every slug behind a temporary placeholder first, since the new
       // slugs can be reassigned between participants (e.g. alias corrections)
-      // and `slug` is unique Ã¢â‚¬â€ upserting in array order could otherwise collide
+      // and `slug` is unique ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â upserting in array order could otherwise collide
       // with another participant's not-yet-updated current slug.
       for (const participant of parsed.participants) {
         await tx.participant.updateMany({
@@ -617,6 +626,13 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
           where: { participantId },
           update: participantData,
           create: participant
+        });
+      }
+      for (const country of parsed.countries) {
+        await tx.country.upsert({
+          where: { countryCode: country.countryCode },
+          update: { nameEs: country.nameEs, flagEmoji: country.flagEmoji, fifaName: country.fifaName ?? null },
+          create: { countryCode: country.countryCode, nameEs: country.nameEs, flagEmoji: country.flagEmoji, fifaName: country.fifaName ?? null }
         });
       }
       for (const team of parsed.teams) {
@@ -766,6 +782,7 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
           rowsImported:
             parsed.participants.length +
             parsed.teams.length +
+            parsed.countries.length +
             parsed.matches.length +
             betMatches.length +
             groupBets.length +

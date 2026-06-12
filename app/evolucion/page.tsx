@@ -2,12 +2,20 @@
 import { PageTitle } from "@/components/PageTitle";
 import { PublicFiltersForm } from "@/components/PublicFiltersForm";
 import { PublicShell } from "@/components/shell/PublicShell";
-import { SimpleBarChart } from "@/components/statistics/StatisticsCharts";
+import { ParticipantEvolutionChart, SimpleBarChart } from "@/components/statistics/StatisticsCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { parsePublicFilters } from "@/lib/public/filters";
-import { getDailyEvolution } from "@/lib/public/temporal";
+import { getDailyEvolution, getParticipantPointsEvolution } from "@/lib/public/temporal";
 
 export const dynamic = "force-dynamic";
+
+const LEGEND_COLORS = ["#1565C0", "#C8A84B", "#4CAF50", "#EF5350", "#42A5F5"];
+
+function legendColor(index: number, total: number) {
+  if (index < LEGEND_COLORS.length) return LEGEND_COLORS[index];
+  const hue = (index * 360) / Math.max(total, 1);
+  return `hsl(${Math.round(hue % 360)}, 65%, 55%)`;
+}
 
 export default async function EvolucionPage({
   searchParams
@@ -16,6 +24,7 @@ export default async function EvolucionPage({
 }) {
   const filters = parsePublicFilters(await searchParams);
   const history = await getDailyEvolution(filters);
+  const participantEvolution = await getParticipantPointsEvolution(filters);
 
   return (
     <PublicShell>
@@ -27,6 +36,29 @@ export default async function EvolucionPage({
           <CardHeader><CardTitle>Puntos por dia de partido</CardTitle></CardHeader>
           <CardContent>
             {history.length > 0 ? <SimpleBarChart data={history} nameKey="day" valueKey="pointsTotal" /> : <p className="text-sm text-slate-600">La evolucion diaria comenzara con el primer resultado oficial publicado.</p>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Evolucion diaria por participante</CardTitle></CardHeader>
+          <CardContent>
+            {participantEvolution.rows.length > 0 ? (
+              <>
+                <ParticipantEvolutionChart data={participantEvolution.rows} series={participantEvolution.participants} />
+                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+                  {participantEvolution.participants.map((alias, index) => (
+                    <span key={alias} className="inline-flex items-center gap-1">
+                      <span
+                        className="inline-block h-2 w-2 rounded-full"
+                        style={{ backgroundColor: legendColor(index, participantEvolution.participants.length) }}
+                      />
+                      {alias}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-600">La evolucion por participante comenzara con el primer resultado oficial publicado.</p>
+            )}
           </CardContent>
         </Card>
         <Card>

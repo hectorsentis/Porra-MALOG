@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+import Link from "next/link";
+import { CountryLabel } from "@/components/CountryLabel";
 import { FilterChips } from "@/components/FilterChips";
 import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
@@ -37,7 +38,7 @@ export default async function PartidosPage({ searchParams }: { searchParams: Pro
 
   return (
     <PublicShell>
-      <PageTitle title="Partidos" subtitle="Calendario, resultados oficiales y lectura de apuestas por partido." />
+      <PageTitle title="Partidos" subtitle="Calendario del Mundial, marcadores oficiales y termómetro de la grada de la porra." />
       <form className="mb-4 grid gap-2 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-6">
         {matchFilterFields.map((field) => (
           <label key={field} className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -63,13 +64,13 @@ export default async function PartidosPage({ searchParams }: { searchParams: Pro
                   <PhaseBadge fase={match.fase} />
                   <span className="text-xs font-semibold uppercase text-slate-500">{match.jornadaId ?? "Jornada"}</span>
                 </div>
-                <Link href={`/partidos/${match.matchId}`} className="text-lg font-bold text-primary">{match.homeTeam} - {match.awayTeam}</Link>
+                <Link href={`/partidos/${match.matchId}`} className="text-lg font-bold text-primary"><CountryLabel value={match.homeTeam} /> vs <CountryLabel value={match.awayTeam} /></Link>
                 <p className="text-sm text-slate-600">{match.fecha ? new Date(match.fecha).toLocaleDateString("es-ES") : "Fecha por confirmar"} {match.hora ?? ""}</p>
               </div>
-              <div><p className="text-xs uppercase text-slate-500">Resultado</p><p className="text-2xl font-bold">{match.resultText ?? "-"}</p></div>
-              <div><p className="text-xs uppercase text-slate-500">Puntos repartidos</p><p className="text-2xl font-bold">{match.pointsDistributed}</p></div>
+              <div><p className="text-xs uppercase text-slate-500">Marcador</p><p className="text-2xl font-bold">{match.resultText ?? "-"}</p></div>
+              <div><p className="text-xs uppercase text-slate-500">Puntos de la porra</p><p className="text-2xl font-bold">{match.pointsDistributed}</p></div>
               <div><p className="text-xs uppercase text-slate-500">Exactos</p><p className="text-2xl font-bold">{match.exactScores}</p></div>
-              <div><p className="text-xs uppercase text-slate-500">Mas apostado</p><p className="text-lg font-bold">{match.prediction.mostPredictedResult}</p><p className="text-xs text-slate-500">{match.prediction.mostPredictedPct}%</p></div>
+              <div><p className="text-xs uppercase text-slate-500">Marcador favorito</p><p className="text-lg font-bold">{match.prediction.mostPredictedResult}</p><p className="text-xs text-slate-500">{match.prediction.mostPredictedPct}%</p></div>
             </CardContent>
           </Card>
         ))}

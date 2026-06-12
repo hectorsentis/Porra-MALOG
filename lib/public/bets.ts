@@ -1,5 +1,6 @@
-﻿import { unstable_noStore as noStore } from "next/cache";
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { formatCountry } from "@/lib/countries";
 import type { PublicFilters } from "./filters";
 import { predictionSign, summarizePredictionDistribution } from "./matchStats";
 import { participantLabels } from "./participantLabels";
@@ -116,7 +117,9 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
     }
   });
   const filtered = rows.filter((row) => {
-    const teamHit = !filters.equipo || includes(row.match.homeTeam, filters.equipo) || includes(row.match.awayTeam, filters.equipo) || includes(row.match.homeTeamId, filters.equipo) || includes(row.match.awayTeamId, filters.equipo);
+    const homeName = formatCountry(row.match.homeTeamId, row.match.homeTeam);
+    const awayName = formatCountry(row.match.awayTeamId, row.match.awayTeam);
+    const teamHit = !filters.equipo || includes(homeName, filters.equipo) || includes(awayName, filters.equipo) || includes(row.match.homeTeamId, filters.equipo) || includes(row.match.awayTeamId, filters.equipo);
     return teamHit && includes(row.participant.alias, filters.alias) && includes(row.participant.departamento, filters.departamento) && includes(row.participant.rango, filters.rango);
   });
   const prediction = summarizePredictionDistribution(filtered);
@@ -129,8 +132,8 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
 
   for (const row of filtered) {
     const sign = predictionSign(row.predHomeGoals, row.predAwayGoals);
-    const homeName = row.match.homeTeam ?? row.match.homeTeamId;
-    const awayName = row.match.awayTeam ?? row.match.awayTeamId;
+    const homeName = formatCountry(row.match.homeTeamId, row.match.homeTeam);
+    const awayName = formatCountry(row.match.awayTeamId, row.match.awayTeam);
     const goals = (row.predHomeGoals ?? 0) + (row.predAwayGoals ?? 0);
     const player = resultadistas.get(row.participantId) ?? { alias: row.participant.alias, departamento: row.participant.departamento, goals: 0, bets: 0 };
     player.goals += goals;
@@ -171,8 +174,8 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
           fase: row.match.fase,
           grupo: row.match.grupo,
           jornadaId: row.match.jornadaId,
-          homeTeam: row.match.homeTeam ?? row.match.homeTeamId,
-          awayTeam: row.match.awayTeam ?? row.match.awayTeamId,
+          homeTeam: formatCountry(row.match.homeTeamId, row.match.homeTeam),
+          awayTeam: formatCountry(row.match.awayTeamId, row.match.awayTeam),
           prediction: selectedResult
         }))
         .sort((a, b) => a.alias.localeCompare(b.alias, "es-ES") || String(a.matchNo ?? "").localeCompare(String(b.matchNo ?? ""), "es-ES"))
@@ -218,10 +221,11 @@ export async function getGroupClassificationBetInsights(filters: PublicFilters) 
     }
   });
   const filtered = rows.filter((row) => includes(row.participant.alias, filters.alias) && includes(row.participant.departamento, filters.departamento) && includes(row.participant.rango, filters.rango));
-  const byTeam = new Map<string, { team: string; totalPos: number; bets: number; first: number; second: number; third: number; fourth: number }>();
+  const byTeam = new Map<string, { team: string; teamId: string; totalPos: number; bets: number; first: number; second: number; third: number; fourth: number }>();
   for (const row of filtered) {
     if (!row.predTeamId) continue;
-    const current = byTeam.get(row.predTeamId) ?? { team: row.predTeamId, totalPos: 0, bets: 0, first: 0, second: 0, third: 0, fourth: 0 };
+    const teamName = formatCountry(row.predTeamId, row.predTeamId);
+    const current = byTeam.get(row.predTeamId) ?? { team: teamName, teamId: row.predTeamId, totalPos: 0, bets: 0, first: 0, second: 0, third: 0, fourth: 0 };
     current.totalPos += row.predPos;
     current.bets += 1;
     if (row.predPos === 1) current.first += 1;
@@ -242,7 +246,7 @@ export async function getGroupClassificationBetInsights(filters: PublicFilters) 
     third: table.map((row) => ({ name: row.team, value: row.third })).sort((a, b) => b.value - a.value).slice(0, 20),
     fourth: table.map((row) => ({ name: row.team, value: row.fourth })).sort((a, b) => b.value - a.value).slice(0, 20),
     table,
-    spainMorocco: table.filter((row) => ["ESP", "ESPANA", "ESPAÑA", "MAR", "MARRUECOS", "MOROCCO"].includes(row.team.toLocaleUpperCase("es-ES")))
+    spainMorocco: table.filter((row) => ["ESP", "MAR"].includes(row.teamId.toLocaleUpperCase("es-ES")))
   };
 }
 

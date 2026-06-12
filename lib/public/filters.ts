@@ -1,5 +1,6 @@
-﻿import { unstable_noStore as noStore } from "next/cache";
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { formatCountry } from "@/lib/countries";
 
 export type PublicFilters = {
   alias?: string;
@@ -89,7 +90,7 @@ export async function getPublicFilterOptions(): Promise<PublicFilterOptions> {
     fase: clean(matches.map((row) => row.fase)),
     jornada: clean(matches.map((row) => row.jornadaId)),
     grupo: clean(matches.map((row) => row.grupo)),
-    equipo: clean(teams.map((team) => team.seleccion || team.teamId))
+    equipo: clean(teams.map((team) => formatCountry(team.teamId, team.seleccion)))
   };
 }
 

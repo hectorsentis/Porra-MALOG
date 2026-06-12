@@ -1,5 +1,6 @@
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { notFound } from "next/navigation";
+import { CountryLabel } from "@/components/CountryLabel";
 import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { Badge } from "@/components/ui/badge";
@@ -151,7 +152,7 @@ export default async function ParticipantePage({ params }: { params: Promise<{ s
                   {section.rows.map((bet) => (
                     <tr key={bet.matchId} className="border-t border-slate-100">
                       <td className="px-3 py-2">
-                        <p className="font-semibold">{bet.homeTeam} - {bet.awayTeam}</p>
+                        <p className="font-semibold"><CountryLabel value={bet.homeTeam} /> - <CountryLabel value={bet.awayTeam} /></p>
                         <p className="text-xs text-slate-500">
                           {bet.fecha ? new Date(bet.fecha).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" }) : "Fecha por confirmar"} {bet.hora ?? ""}
                           {bet.jornadaId ? ` - ${bet.jornadaId}` : ""}
@@ -161,14 +162,14 @@ export default async function ParticipantePage({ params }: { params: Promise<{ s
                       <td className="px-3 py-2">
                         <p className="font-bold">{bet.prediction}</p>
                         <Badge className={signClass(bet.predSign)}>{bet.predSign}</Badge>
-                        {bet.predQualifiedTeamId ? <p className="mt-1 text-xs text-slate-500">Clasifica: {bet.predQualifiedTeamId}</p> : null}
+                        {bet.predQualifiedTeamId ? <p className="mt-1 text-xs text-slate-500">Clasifica: <CountryLabel value={bet.predQualifiedTeamId} /></p> : null}
                       </td>
                       <td className="px-3 py-2">
                         {bet.resultText ? (
                           <>
                             <p className="font-bold">{bet.resultText}</p>
                             <Badge className={signClass(bet.realSign)}>{bet.realSign}</Badge>
-                            {bet.qualifiedTeamId ? <p className="mt-1 text-xs text-slate-500">Clasifica: {bet.qualifiedTeamId}</p> : null}
+                            {bet.qualifiedTeamId ? <p className="mt-1 text-xs text-slate-500">Clasifica: <CountryLabel value={bet.qualifiedTeamId} /></p> : null}
                           </>
                         ) : (
                           <span className="text-sm text-slate-500">-</span>
@@ -204,7 +205,7 @@ export default async function ParticipantePage({ params }: { params: Promise<{ s
                   <tr key={`${group.grupo}-${group.predPos}`} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-semibold">{group.grupo}</td>
                     <td className="px-3 py-2">{group.predPos}</td>
-                    <td className="px-3 py-2">{group.predTeamId ?? "-"}</td>
+                    <td className="px-3 py-2">{group.predTeamId ? <CountryLabel value={group.predTeamId} /> : "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -219,11 +220,26 @@ export default async function ParticipantePage({ params }: { params: Promise<{ s
           <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {bonusLabels.map(([key, label]) => {
               const value = bonus[key];
-              const display = Array.isArray(value) ? (value.length ? value.join(", ") : "-") : value ?? "-";
+              const isCountry = key !== "maximoGoleador" && key !== "totalGolesTorneo";
+              let content: ReactNode;
+              if (Array.isArray(value)) {
+                content = value.length
+                  ? value.map((item, index) => (
+                      <span key={`${key}-${index}`}>
+                        {index > 0 ? ", " : ""}
+                        {isCountry ? <CountryLabel value={item} /> : item}
+                      </span>
+                    ))
+                  : "-";
+              } else if (value == null) {
+                content = "-";
+              } else {
+                content = isCountry ? <CountryLabel value={String(value)} /> : value;
+              }
               return (
                 <div key={key} className="rounded-md border border-slate-100 p-3">
                   <p className="text-xs uppercase text-slate-500">{label}</p>
-                  <p className="text-lg font-bold">{display}</p>
+                  <p className="text-lg font-bold">{content}</p>
                 </div>
               );
             })}

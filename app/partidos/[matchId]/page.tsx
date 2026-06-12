@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CountryLabel } from "@/components/CountryLabel";
 import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ ma
 
   return (
     <PublicShell>
-      <PageTitle title={`${match.homeTeam} - ${match.awayTeam}`} subtitle={match.jornadaId ?? "Jornada"} />
+      <PageTitle title={<><CountryLabel value={match.homeTeam} /> - <CountryLabel value={match.awayTeam} /></>} subtitle={match.jornadaId ?? "Jornada"} />
       <div className="-mt-3 mb-4"><PhaseBadge fase={match.fase} /></div>
       <section className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <Card>
@@ -58,7 +59,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ ma
                     <td className="px-3 py-2">{bet.rango ?? "-"}</td>
                     <td className="px-3 py-2">{bet.prediction}</td>
                     <td className="px-3 py-2">{Number.isFinite(home) && Number.isFinite(away) ? predictionSign(home, away) : "-"}</td>
-                    <td className="px-3 py-2">{bet.predQualifiedTeamId ?? "-"}</td>
+                    <td className="px-3 py-2">{bet.predQualifiedTeamId ? <CountryLabel value={bet.predQualifiedTeamId} /> : "-"}</td>
                     <td className="px-3 py-2 font-bold">{bet.pointsTotal}</td>
                   </tr>
                 );

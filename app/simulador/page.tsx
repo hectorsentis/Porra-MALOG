@@ -1,4 +1,4 @@
-﻿import { PageTitle } from "@/components/PageTitle";
+import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { parsePublicFilters } from "@/lib/public/filters";
@@ -18,9 +18,9 @@ export default async function SimuladorPage({ searchParams }: { searchParams: Pr
 
   return (
     <PublicShell>
-      <PageTitle title="Simulador" subtitle="Proyecciones en memoria: no guarda resultados ni modifica la clasificacion oficial." />
+      <PageTitle title="Simulador" subtitle="Prueba marcadores como si estuvieras en el banquillo: no toca la clasificación oficial." />
       <Card className="mb-4">
-        <CardHeader><CardTitle>Escenario de partido</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Pizarra del partido</CardTitle></CardHeader>
         <CardContent>
           <form className="grid gap-3 md:grid-cols-[1fr_120px_120px_160px_120px]">
             <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -71,7 +71,7 @@ export default async function SimuladorPage({ searchParams }: { searchParams: Pr
                   </div>
                 ))}
               </div>
-            ) : <p className="text-sm text-slate-600">Selecciona partido y marcador para calcular una proyeccion.</p>}
+            ) : <p className="text-sm text-slate-600">Elige partido y marcador para ver cómo se mueve la tabla.</p>}
           </CardContent>
         </Card>
       </div>

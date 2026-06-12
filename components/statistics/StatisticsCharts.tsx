@@ -138,6 +138,28 @@ export function EvolutionLineChart({ data }: { data: ChartRow[] }) {
   );
 }
 
+function seriesColor(index: number, total: number) {
+  if (index < colors.length) return colors[index];
+  const hue = (index * 360) / Math.max(total, 1);
+  return `hsl(${Math.round(hue % 360)}, 65%, 55%)`;
+}
+
+export function ParticipantEvolutionChart({ data, series }: { data: ChartRow[]; series: string[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={420}>
+      <LineChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="day" tick={axisTick} />
+        <YAxis tick={axisTick} />
+        <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ stroke: gridColor }} />
+        {series.map((name, index) => (
+          <Line key={name} type="monotone" dataKey={name} stroke={seriesColor(index, series.length)} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function SimpleBarChart({ data, nameKey = "name", valueKey = "value" }: { data: ChartRow[]; nameKey?: string; valueKey?: string }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
