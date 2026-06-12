@@ -260,12 +260,19 @@ export async function getParticipantPointsEvolution(filters: PublicFilters) {
   const cumulative = new Map<string, number>();
   const rows_: ParticipantEvolutionPoint[] = days.map((day) => {
     const dayMap = byDayParticipant.get(day)!;
-    const point: ParticipantEvolutionPoint = { day };
     for (const participantId of participantIds) {
       const total = (cumulative.get(participantId) ?? 0) + (dayMap.get(participantId) ?? 0);
       cumulative.set(participantId, total);
-      point[aliasById.get(participantId)!] = total;
     }
+    const ranked = [...participantIds].sort((a, b) => {
+      const totalDiff = (cumulative.get(b) ?? 0) - (cumulative.get(a) ?? 0);
+      if (totalDiff !== 0) return totalDiff;
+      return aliasById.get(a)!.localeCompare(aliasById.get(b)!, "es-ES");
+    });
+    const point: ParticipantEvolutionPoint = { day };
+    ranked.forEach((participantId, index) => {
+      point[aliasById.get(participantId)!] = index + 1;
+    });
     return point;
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -59,7 +59,7 @@ function tooltipLabel(name: unknown) {
 }
 const tooltipFormatter = (value: unknown, name: unknown): [ReactNode, string] => [value as ReactNode, tooltipLabel(name)];
 
-type ChartRow = Record<string, string | number | null | undefined>;
+export type ChartRow = Record<string, string | number | null | undefined>;
 
 export function DistributionChart({ data }: { data: ChartRow[] }) {
   return (
@@ -138,22 +138,67 @@ export function EvolutionLineChart({ data }: { data: ChartRow[] }) {
   );
 }
 
-function seriesColor(index: number, total: number) {
+export function seriesColor(index: number, total: number) {
   if (index < colors.length) return colors[index];
   const hue = (index * 360) / Math.max(total, 1);
   return `hsl(${Math.round(hue % 360)}, 65%, 55%)`;
 }
 
-export function ParticipantEvolutionChart({ data, series }: { data: ChartRow[]; series: string[] }) {
+export function ParticipantEvolutionChart({ data, series, selectedSeries }: { data: ChartRow[]; series: string[]; selectedSeries?: string | null }) {
+  const [hoveredSeries, setHoveredSeries] = useState<string | null>(null);
+  const highlighted = hoveredSeries ?? selectedSeries ?? null;
+
   return (
     <ResponsiveContainer width="100%" height={420}>
       <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
         <XAxis dataKey="day" tick={axisTick} />
-        <YAxis tick={axisTick} />
-        <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ stroke: gridColor }} />
+        <YAxis tick={axisTick} reversed allowDecimals={false} domain={[1, series.length]} />
+        <Tooltip
+          cursor={hoveredSeries ? { stroke: gridColor } : false}
+          content={({ active, payload, label }) => {
+            if (!active || !hoveredSeries) return null;
+            const entry = payload?.find((item) => item.dataKey === hoveredSeries);
+            if (!entry) return null;
+            return (
+              <div style={tooltipContentStyle} className="rounded-lg px-3 py-2 text-sm">
+                <p style={tooltipLabelStyle}>{label}</p>
+                <p style={tooltipItemStyle}>{hoveredSeries}: Posicion {entry.value}</p>
+              </div>
+            );
+          }}
+        />
+        {series.map((name, index) => {
+          const isHovered = highlighted === name;
+          const isDimmed = highlighted != null && !isHovered;
+          return (
+            <Line
+              key={name}
+              type="monotone"
+              dataKey={name}
+              stroke={seriesColor(index, series.length)}
+              strokeWidth={isHovered ? 3 : 1.5}
+              strokeOpacity={isDimmed ? 0.15 : 1}
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+            />
+          );
+        })}
         {series.map((name, index) => (
-          <Line key={name} type="monotone" dataKey={name} stroke={seriesColor(index, series.length)} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+          <Line
+            key={`hit-${name}`}
+            type="monotone"
+            dataKey={name}
+            stroke={seriesColor(index, series.length)}
+            strokeWidth={12}
+            strokeOpacity={0}
+            dot={false}
+            activeDot={false}
+            isAnimationActive={false}
+            onMouseEnter={() => setHoveredSeries(name)}
+            onMouseLeave={() => setHoveredSeries(null)}
+          />
         ))}
       </LineChart>
     </ResponsiveContainer>
