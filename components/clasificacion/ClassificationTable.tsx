@@ -3,38 +3,88 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import type { PublicClassificationRow } from "@/lib/public/dto";
+import type { ClassificationOverviewRow } from "@/lib/public/clasificacion";
 import { Badge } from "@/components/ui/badge";
+import { DeltaBadge } from "@/components/clasificacion/DeltaBadge";
 
-export function ClassificationTable({ rows }: { rows: PublicClassificationRow[] }) {
+function LastMatchBadge({ lastMatch }: { lastMatch: ClassificationOverviewRow["lastMatch"] }) {
+  if (!lastMatch) return <span className="text-slate-400">—</span>;
+  const className = lastMatch.tipo === "Exacto" ? "text-air-up" : lastMatch.tipo === "Ganador" ? "text-air-light" : "text-air-down";
+  const title = `${lastMatch.label}${lastMatch.resultado ? ` (${lastMatch.resultado})` : ""}${lastMatch.apostado ? ` · Apostado: ${lastMatch.apostado}` : ""}`;
+  return (
+    <Badge className={className} title={title}>
+      {lastMatch.tipo}
+    </Badge>
+  );
+}
+
+export function ClassificationTable({
+  rows,
+  delta = "both",
+  topDayGainerAlias = null,
+  topPhaseGainerAlias = null
+}: {
+  rows: ClassificationOverviewRow[];
+  delta?: "both" | "phase" | "day";
+  topDayGainerAlias?: string | null;
+  topPhaseGainerAlias?: string | null;
+}) {
   const [globalFilter, setGlobalFilter] = useState("");
-  const columns = useMemo<ColumnDef<PublicClassificationRow>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<ClassificationOverviewRow>[]>(() => {
+    const all: ColumnDef<ClassificationOverviewRow>[] = [
       { accessorKey: "pos", header: "Pos" },
+      {
+        id: "deltaPosPhase",
+        accessorKey: "deltaPosPhase",
+        header: "Δ fase",
+        cell: ({ row }) => <DeltaBadge value={row.original.deltaPosPhase} />
+      },
+      {
+        id: "deltaPosDay",
+        accessorKey: "deltaPosDay",
+        header: "Δ dia",
+        cell: ({ row }) => <DeltaBadge value={row.original.deltaPosDay} />
+      },
       {
         accessorKey: "alias",
         header: "Alias",
         cell: ({ row }) => <Link className="font-semibold text-primary" href={`/participantes/${row.original.slug}`}>{row.original.alias}</Link>
       },
-      { accessorKey: "departamento", header: "Departamento" },
-      { accessorKey: "rango", header: "Rango" },
-      { accessorKey: "pointsTotal", header: "Total" },
-      { accessorKey: "pointsMatches", header: "Partidos" },
-      { accessorKey: "pointsGroups", header: "Grupos" },
-      { accessorKey: "pointsBonus", header: "Bonus" },
+      { accessorKey: "departamento", header: "Dept" },
+      { accessorKey: "pointsTotal", header: "Pts totales" },
+      { accessorKey: "pointsToday", header: "Pts hoy" },
+      { accessorKey: "exactScores", header: "Exactos" },
+      { accessorKey: "ganadores", header: "Ganadores" },
+      { accessorKey: "fallos", header: "Fallos" },
       {
-        accessorKey: "deltaPos",
-        header: "Delta",
-        cell: ({ row }) => (
-          <Badge className={row.original.deltaPos > 0 ? "text-air-up" : row.original.deltaPos < 0 ? "text-air-down" : "text-slate-500"}>
-            {row.original.deltaPos > 0 ? "+" : ""}
-            {row.original.deltaPos}
-          </Badge>
-        )
+        accessorKey: "pctAcierto",
+        header: "% acierto",
+        cell: ({ row }) => `${Math.round(row.original.pctAcierto * 100)}%`
+      },
+      { accessorKey: "pointsMatches", header: "Pts grupos" },
+      { accessorKey: "pointsEliminatorias", header: "Pts elim." },
+      {
+        id: "lastMatch",
+        header: "Ultimo partido",
+        cell: ({ row }) => <LastMatchBadge lastMatch={row.original.lastMatch} />
+      },
+      {
+        id: "lastMatchPoints",
+        header: "Pts ultimo partido",
+        cell: ({ row }) => row.original.lastMatch?.points ?? "–"
+      },
+      {
+        accessorKey: "racha",
+        header: "Racha",
+        cell: ({ row }) => (row.original.racha > 0 ? `🔥 ${row.original.racha}` : "–")
       }
-    ],
-    []
-  );
+    ];
+    return all.filter((column) => {
+      if (column.id === "deltaPosPhase") return delta === "both" || delta === "phase";
+      if (column.id === "deltaPosDay") return delta === "both" || delta === "day";
+      return true;
+    });
+  }, [delta]);
   const table = useReactTable({
     data: rows,
     columns,
@@ -56,7 +106,7 @@ export function ClassificationTable({ rows }: { rows: PublicClassificationRow[] 
         />
       </label>
       <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full min-w-[820px] text-sm">
+        <table className="w-full min-w-[1220px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
@@ -69,15 +119,18 @@ export function ClassificationTable({ rows }: { rows: PublicClassificationRow[] 
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-t border-slate-100">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {table.getRowModel().rows.map((row) => {
+              const isTopGainer = row.original.alias === topDayGainerAlias || row.original.alias === topPhaseGainerAlias;
+              return (
+                <tr key={row.id} className={`border-t border-slate-100 ${isTopGainer ? "bg-emerald-50" : ""}`}>
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-3 py-2">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

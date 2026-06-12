@@ -12,6 +12,8 @@ export type PublicFilters = {
   equipo?: string;
   estado?: string;
   fecha?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
   partido?: string;
   resultado?: string;
   tab?: string;
@@ -42,6 +44,8 @@ export function parsePublicFilters(searchParams: Record<string, string | string[
     equipo: read("equipo") || undefined,
     estado: read("estado") || undefined,
     fecha: read("fecha") || undefined,
+    fechaDesde: read("fechaDesde") || undefined,
+    fechaHasta: read("fechaHasta") || undefined,
     partido: read("partido") || undefined,
     resultado: read("resultado") || undefined,
     tab: read("tab") || "resumen"

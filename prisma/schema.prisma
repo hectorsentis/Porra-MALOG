@@ -317,6 +317,8 @@ model GeneralRanking {
   posFecha              Int?     @map("Pos_Fecha")
   deltaPos              Int      @default(0) @map("Delta_Pos")
   deltaPoints           Int      @default(0) @map("Delta_Points")
+  deltaPosPhase         Int?     @map("Delta_Pos_Phase")
+  deltaPosDay           Int?     @map("Delta_Pos_Day")
   updatedAt             DateTime @updatedAt
 
   participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
@@ -351,6 +353,9 @@ model RankingSnapshot {
   phase              String?
   matchday           String?
   recalculationRunId String?
+  trigger            String?
+  phaseGroup         String?
+  dayKey             String?
   rows               RankingSnapshotRow[]
   scoreRows          ParticipantScoreSnapshot[]
 

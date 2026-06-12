@@ -15,7 +15,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ ma
   const { matchId } = await params;
   const detail = await getPublicMatchDetail(matchId);
   if (!detail) notFound();
-  const { match, prediction, bets } = detail;
+  const { match, prediction, bets, pedometer } = detail;
 
   return (
     <PublicShell>
@@ -24,12 +24,13 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ ma
       <section className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <Card>
           <CardHeader><CardTitle>Resumen del partido</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-6">
             <div><p className="text-xs uppercase text-slate-500">Estado</p><Badge>{match.statusLabel}</Badge></div>
             <div><p className="text-xs uppercase text-slate-500">Fecha</p><p className="text-2xl font-bold">{match.fecha ? new Date(match.fecha).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" }) : "Por confirmar"}</p>{match.hora ? <p className="text-sm text-slate-500">{match.hora}</p> : null}</div>
             <div><p className="text-xs uppercase text-slate-500">Resultado</p><p className="text-2xl font-bold">{match.resultText ?? "-"}</p></div>
             <div><p className="text-xs uppercase text-slate-500">Puntos</p><p className="text-2xl font-bold">{detail.pointsDistributed}</p></div>
             <div><p className="text-xs uppercase text-slate-500">Exactos</p><p className="text-2xl font-bold">{detail.exactScores}</p></div>
+            <div><p className="text-xs uppercase text-slate-500">{"Piedr\u00f3metro"}</p><p className="text-lg font-bold">{pedometer ? <CountryLabel value={pedometer.value} /> : "-"}</p><p className="text-xs text-slate-500">{pedometer ? `${pedometer.detail} · ${pedometer.winners.map((winner) => winner.alias).join(", ")}` : "Sin pedrada"}</p></div>
           </CardContent>
         </Card>
         <Card>

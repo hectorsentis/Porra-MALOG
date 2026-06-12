@@ -7,6 +7,8 @@ type PublicRankingShape = {
   pos: number;
   deltaPos: number;
   deltaPoints: number;
+  deltaPosPhase?: number | null;
+  deltaPosDay?: number | null;
   pointsTotal: number;
   pointsMatches: number;
   pointsGroups: number;
@@ -24,6 +26,8 @@ export function toPublicClassificationRow(row: PublicRankingShape): PublicClassi
     pos: row.pos,
     deltaPos: row.deltaPos,
     deltaPoints: row.deltaPoints,
+    deltaPosPhase: row.deltaPosPhase ?? null,
+    deltaPosDay: row.deltaPosDay ?? null,
     pointsTotal: row.pointsTotal,
     pointsMatches: row.pointsMatches,
     pointsGroups: row.pointsGroups,

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { FilterChips } from "@/components/FilterChips";
 import { PageTitle } from "@/components/PageTitle";
 import { PublicFiltersForm } from "@/components/PublicFiltersForm";
@@ -27,6 +27,7 @@ const tabs = [
   ["departamentos", "Departamentos"],
   ["apuestas", "Apuestas"],
   ["volatilidad", "Volatilidad"],
+  ["premios", "Premios Especiales"],
   ["bote", "Bote"]
 ];
 
@@ -39,6 +40,46 @@ function tabHref(tab: string, filters: PublicFilters) {
   return `/estadisticas?${params.toString()}`;
 }
 
+type SpecialAward = {
+  key: string;
+  title: string;
+  icon: string;
+  definition: string;
+  value: string;
+  winners: Array<{ alias: string; slug: string; detail: string }>;
+};
+
+function SpecialAwardCard({ award }: { award: SpecialAward }) {
+  return (
+    <Card className="overflow-hidden border-slate-200">
+      <CardContent className="grid gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Premio especial</p>
+            <h3 className="mt-1 flex items-center gap-2 text-lg font-bold text-primary"><span className="text-xl text-air-gold">{award.icon}</span>{award.title}</h3>
+          </div>
+          <div className="rounded-full border border-air-gold bg-air-dark px-4 py-2 text-right font-mono text-lg font-bold text-air-gold shadow-sm">
+            {award.value}
+          </div>
+        </div>
+        <p className="text-sm text-slate-600">{award.definition}</p>
+        <div className="rounded-md border border-slate-100 bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase text-slate-500">Ganador</p>
+          {award.winners.length > 0 ? (
+            <div className="mt-2 grid gap-2">
+              {award.winners.map((winner) => (
+                <div key={`${award.key}-${winner.slug || winner.alias}`} className="flex items-center justify-between gap-3 text-sm">
+                  {winner.slug ? <Link href={`/participantes/${winner.slug}`} className="font-bold text-primary">{winner.alias}</Link> : <span className="font-bold text-primary">{winner.alias}</span>}
+                  <span className="text-right text-xs text-slate-500">{winner.detail}</span>
+                </div>
+              ))}
+            </div>
+          ) : <p className="mt-2 text-sm font-semibold text-slate-500">{"Sin ganador todav\u00eda"}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <Card>
@@ -246,6 +287,19 @@ export default async function EstadisticasPage({
         </section>
       ) : null}
 
+      {activeTab === "premios" ? (
+        <section className="grid gap-4">
+          <Card>
+            <CardHeader><CardTitle>Premios Especiales</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-600">{"Galardones de la porra calculados con la clasificaci\u00f3n, los aciertos y las apuestas p\u00fablicas. Solo cuentan datos visibles de competici\u00f3n."}</p>
+            </CardContent>
+          </Card>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {stats.specialAwards.map((award: SpecialAward) => <SpecialAwardCard key={award.key} award={award} />)}
+          </div>
+        </section>
+      ) : null}
       {activeTab === "bote" ? (
         <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <Card>

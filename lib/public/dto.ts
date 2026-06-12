@@ -6,6 +6,8 @@ export type PublicClassificationRow = {
   pos: number;
   deltaPos: number;
   deltaPoints: number;
+  deltaPosPhase: number | null;
+  deltaPosDay: number | null;
   pointsTotal: number;
   pointsMatches: number;
   pointsGroups: number;

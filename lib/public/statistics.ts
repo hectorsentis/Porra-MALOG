@@ -25,7 +25,7 @@ function includes(value: string | null | undefined, filter: string | undefined) 
 }
 
 export async function getAdvancedStatistics(filters: PublicFilters) {
-  const [classificationRows, snapshots, betBonusRows, scoringMatches, boteConfig] = await Promise.all([
+  const [classificationRows, snapshots, betBonusRows, scoringMatches, betMatchRows, boteConfig] = await Promise.all([
     prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { slug: true } } } }),
     prisma.participantScoreSnapshot.findMany({ orderBy: { createdAt: "asc" }, take: 5000 }),
     prisma.betBonus.findMany({
@@ -55,9 +55,14 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
         diffOk: true,
         signOk: true,
         qualifiedOk: true,
+        cruceExactoOk: true,
+        spainMatch: true,
         pointsTotal: true,
-        match: { select: { fase: true, jornadaId: true, grupo: true, homeTeamId: true, awayTeamId: true, homeTeam: true, awayTeam: true } }
+        match: { select: { status: true, fase: true, jornadaId: true, grupo: true, homeTeamId: true, awayTeamId: true, homeTeam: true, awayTeam: true } }
       }
+    }),
+    prisma.betMatch.findMany({
+      select: { participantId: true, predHomeGoals: true, predAwayGoals: true }
     }),
     prisma.boteConfig.findUnique({ where: { id: "default" } }).catch(() => null)
   ]);
@@ -145,7 +150,9 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
         includes(match.homeTeamId, filters.equipo) ||
         includes(match.awayTeamId, filters.equipo) ||
         includes(match.homeTeam, filters.equipo) ||
-        includes(match.awayTeam, filters.equipo))
+        includes(match.awayTeam, filters.equipo) ||
+        includes(formatCountry(match.homeTeamId, match.homeTeam), filters.equipo) ||
+        includes(formatCountry(match.awayTeamId, match.awayTeam), filters.equipo))
     );
   });
   for (const score of filteredScoring) {
@@ -197,6 +204,79 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     };
   });
 
+  const participantMeta = new Map(filteredClassificationRows.map((row) => [row.participantId, {
+    alias: row.alias,
+    slug: row.participant?.slug ?? "",
+    departamento: row.departamento,
+    rango: row.rango
+  }]));
+
+  type AwardCandidate = { participantId: string; metric: number; detail: string };
+
+  function makeAward(key: string, title: string, icon: string, definition: string, candidates: AwardCandidate[], formatValue: (value: number) => string) {
+    const valid = candidates.filter((candidate) => participantMeta.has(candidate.participantId) && Number.isFinite(candidate.metric));
+    const max = Math.max(0, ...valid.map((candidate) => candidate.metric));
+    const winners = max > 0
+      ? valid
+          .filter((candidate) => candidate.metric === max)
+          .map((candidate) => {
+            const meta = participantMeta.get(candidate.participantId)!;
+            return { alias: meta.alias, slug: meta.slug, detail: candidate.detail };
+          })
+      : [];
+    return {
+      key,
+      title,
+      icon,
+      definition,
+      value: max > 0 ? formatValue(max) : "Sin datos",
+      winners
+    };
+  }
+
+  const officialScoring = filteredScoring.filter((score) => score.match.status === "OFFICIAL" && filteredParticipantIds.has(score.participantId));
+  const countByParticipant = (rows: typeof officialScoring, predicate: (score: (typeof officialScoring)[number]) => boolean, value: (score: (typeof officialScoring)[number]) => number = () => 1) => {
+    const counts = new Map<string, number>();
+    for (const score of rows) {
+      if (!predicate(score)) continue;
+      counts.set(score.participantId, (counts.get(score.participantId) ?? 0) + value(score));
+    }
+    return counts;
+  };
+  const gafeCounts = countByParticipant(officialScoring, (score) => score.pointsTotal === 0);
+  const regularCounts = countByParticipant(officialScoring, (score) => score.pointsTotal > 0);
+  const patriotaCounts = countByParticipant(
+    officialScoring,
+    (score) => score.spainMatch || score.match.homeTeamId === "ESP" || score.match.awayTeamId === "ESP",
+    (score) => score.pointsTotal
+  );
+  const amarrateguiCounts = new Map<string, number>();
+  for (const bet of betMatchRows) {
+    if (!filteredParticipantIds.has(bet.participantId) || bet.predHomeGoals == null || bet.predAwayGoals == null || bet.predHomeGoals !== bet.predAwayGoals) continue;
+    amarrateguiCounts.set(bet.participantId, (amarrateguiCounts.get(bet.participantId) ?? 0) + 1);
+  }
+  const fromCountMap = (map: Map<string, number>, suffix: string): AwardCandidate[] => [...filteredParticipantIds].map((participantId) => {
+    const value = map.get(participantId) ?? 0;
+    return { participantId, metric: value, detail: `${value} ${suffix}` };
+  });
+
+  const specialAwards = [
+    makeAward("nostradamus", "Nostradamus", "\u25CE", "M\u00e1s resultados exactos clavados en el marcador.", filteredClassificationRows.map((row) => ({ participantId: row.participantId, metric: row.exactScores, detail: `${row.exactScores} exactos` })), (value) => `${value} exactos`),
+    makeAward("rey-signo", "Rey del signo", "\u2611", "M\u00e1s signos acertados: victoria local, empate o visitante.", filteredClassificationRows.map((row) => ({ participantId: row.participantId, metric: row.correctSigns, detail: `${row.correctSigns} signos` })), (value) => `${value} signos`),
+    makeAward("cirujano-grupos", "Cirujano de grupos", "\u25A5", "M\u00e1s posiciones exactas en la clasificaci\u00f3n de grupos.", filteredClassificationRows.map((row) => ({ participantId: row.participantId, metric: row.correctGroupPositions, detail: `${row.correctGroupPositions} posiciones` })), (value) => `${value} posiciones`),
+    makeAward("rey-cruces", "Rey de cruces", "\u2694", "M\u00e1s cruces exactos en el cuadro del Mundial.", filteredClassificationRows.map((row) => ({ participantId: row.participantId, metric: row.correctCruces, detail: `${row.correctCruces} cruces` })), (value) => `${value} cruces`),
+    makeAward("killer-ko", "Killer de eliminatorias", "\u2715", "M\u00e1s puntos sumados en partidos KO.", filteredClassificationRows.map((row) => ({ participantId: row.participantId, metric: row.pointsEliminatorias, detail: `${row.pointsEliminatorias} puntos KO` })), (value) => `${value} pts`),
+    makeAward("bonusman", "Bonusman", "\u25A3", "M\u00e1s puntos conseguidos en bonus iniciales.", filteredClassificationRows.map((row) => ({ participantId: row.participantId, metric: row.pointsBonus, detail: `${row.pointsBonus} puntos bonus` })), (value) => `${value} pts`),
+    makeAward("florero", "Florero oficial", "\u2726", "M\u00e1s puntos con pocos resultados exactos: ratio puntos por exacto.", filteredClassificationRows.map((row) => {
+      const ratio = row.pointsTotal > 0 ? row.pointsTotal / Math.max(1, row.exactScores) : 0;
+      return { participantId: row.participantId, metric: Math.round(ratio * 10) / 10, detail: `${row.pointsTotal} pts con ${row.exactScores} exactos` };
+    }), (value) => `${value.toFixed(1)} pts/exacto`),
+    makeAward("gafe", "Gafe", "\u25B3", "M\u00e1s partidos oficiales puntuados con cero.", fromCountMap(gafeCounts, "ceros"), (value) => `${value} ceros`),
+    makeAward("amarrategui", "Amarrategui", "\u25A4", "M\u00e1s empates apostados en marcadores.", fromCountMap(amarrateguiCounts, "empates"), (value) => `${value} empates`),
+    makeAward("patriota", "Patriota", "\u2605", "M\u00e1s puntos en partidos de Espa\u00f1a.", fromCountMap(patriotaCounts, "puntos con Espa\u00f1a"), (value) => `${value} pts`),
+    makeAward("cohete", "Cohete", "\u2197", "Mayor subida de posiciones en la clasificaci\u00f3n.", filteredClassificationRows.map((row) => ({ participantId: row.participantId, metric: Math.max(0, row.deltaPos), detail: `+${Math.max(0, row.deltaPos)} posiciones` })), (value) => `+${value}`),
+    makeAward("regular", "Regular", "\u25EB", "M\u00e1s partidos oficiales sumando al menos un punto.", fromCountMap(regularCounts, "partidos puntuando"), (value) => `${value} partidos`)
+  ];
   const filteredBetBonusRows = betBonusRows.filter((bet) => filteredParticipantIds.has(bet.participantId));
   const countMarket = (field: keyof (typeof betBonusRows)[number]) => {
     const counts = new Map<string, number>();
@@ -297,6 +377,7 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
       rarityByParticipant
     },
     volatility,
+    specialAwards,
     bote: {
       total: totalBote,
       currency: boteConfig?.currency ?? "EUR",

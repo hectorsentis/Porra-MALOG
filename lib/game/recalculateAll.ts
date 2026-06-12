@@ -5,6 +5,7 @@ import { scoreGroups } from "./scoreGroups";
 import { computeGroupStandings } from "./groupStandings";
 import { getActiveGameRules } from "./ruleConfig";
 import { isOfficialMatchForScoring } from "./matchStatus";
+import { getEstDayKey } from "@/lib/utils/timezone";
 import type { GroupStandingInput } from "./types";
 
 export { isOfficialMatchForScoring } from "./matchStatus";
@@ -15,6 +16,13 @@ export type RecalculateAllOptions = {
   eventLabel?: string | null;
   createdBy?: string | null;
 };
+
+export function phaseGroupOf(fase: string | null | undefined, jornadaId: string | null | undefined): string | null {
+  if (!fase) return null;
+  if (fase === "GRUPOS") return jornadaId ?? null;
+  if (fase === "TERCER_PUESTO") return "SF";
+  return fase;
+}
 
 export async function recalculateAll(prisma: PrismaClient, options: RecalculateAllOptions = {}) {
   const startedAt = new Date();
@@ -42,15 +50,28 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
     }
   });
 
+  const todayKeyEst = getEstDayKey(startedAt);
+  const currentPhaseGroup = phaseGroupOf(eventMatch?.fase, eventMatch?.jornadaId);
+
   try {
-    const [participants, bets, matches, previous, rules, teams, groupBets] = await Promise.all([
+    const [participants, bets, matches, previous, rules, teams, groupBets, lastPhaseSnapshot, lastDaySnapshot] = await Promise.all([
       prisma.participant.findMany(),
       prisma.betMatch.findMany(),
       prisma.match.findMany(),
       prisma.generalRanking.findMany(),
       getActiveGameRules(),
       prisma.team.findMany(),
-      prisma.betGroupPosition.findMany()
+      prisma.betGroupPosition.findMany(),
+      prisma.rankingSnapshot.findFirst({
+        where: { trigger: "phase-start" },
+        orderBy: { createdAt: "desc" },
+        include: { rows: true }
+      }),
+      prisma.rankingSnapshot.findFirst({
+        where: { trigger: "day-start", dayKey: todayKeyEst },
+        orderBy: { createdAt: "asc" },
+        include: { rows: true }
+      })
     ]);
 
     const matchById = new Map(matches.map((match) => [match.matchId, match]));
@@ -153,7 +174,78 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
       })
     );
 
+    const phaseBaseline = currentPhaseGroup
+      ? new Map(
+          (lastPhaseSnapshot && lastPhaseSnapshot.phaseGroup === currentPhaseGroup ? lastPhaseSnapshot.rows : previous).map(
+            (row) => [row.participantId, row.pos] as const
+          )
+        )
+      : null;
+    const dayBaseline = new Map((lastDaySnapshot ? lastDaySnapshot.rows : previous).map((row) => [row.participantId, row.pos] as const));
+
+    const deltaPosPhaseByParticipant = new Map<string, number | null>();
+    const deltaPosDayByParticipant = new Map<string, number | null>();
+    for (const row of ranking) {
+      const phaseFrom = phaseBaseline?.get(row.participantId);
+      deltaPosPhaseByParticipant.set(row.participantId, phaseFrom != null ? phaseFrom - row.pos : null);
+      const dayFrom = dayBaseline.get(row.participantId);
+      deltaPosDayByParticipant.set(row.participantId, dayFrom != null ? dayFrom - row.pos : null);
+    }
+
+    const buildMarkerRows = (snapshotId: string, label: string) =>
+      previous.map((row) => ({
+        snapshotId,
+        participantId: row.participantId,
+        alias: row.alias,
+        departamento: row.departamento,
+        rango: row.rango,
+        pos: row.pos,
+        previousPos: null,
+        deltaPos: row.deltaPos,
+        deltaPoints: row.deltaPoints,
+        pointsMatches: row.pointsMatches,
+        pointsGroups: row.pointsGroups,
+        pointsEliminatorias: row.pointsEliminatorias,
+        pointsBonus: row.pointsBonus,
+        pointsTotal: row.pointsTotal,
+        pointsGainedThisRun: 0,
+        eventLabel: label,
+        phase: null,
+        matchday: null,
+        matchId: null
+      }));
+
     await prisma.$transaction(async (tx) => {
+      if (currentPhaseGroup && previous.length > 0 && (!lastPhaseSnapshot || lastPhaseSnapshot.phaseGroup !== currentPhaseGroup)) {
+        const label = `Inicio de fase ${currentPhaseGroup}`;
+        const phaseMarker = await tx.rankingSnapshot.create({
+          data: {
+            label,
+            source: "engine",
+            isLatest: false,
+            trigger: "phase-start",
+            phaseGroup: currentPhaseGroup,
+            recalculationRunId: run.id
+          }
+        });
+        await tx.rankingSnapshotRow.createMany({ data: buildMarkerRows(phaseMarker.id, label) });
+      }
+
+      if (!lastDaySnapshot && previous.length > 0) {
+        const label = `Inicio del dia ${todayKeyEst}`;
+        const dayMarker = await tx.rankingSnapshot.create({
+          data: {
+            label,
+            source: "engine",
+            isLatest: false,
+            trigger: "day-start",
+            dayKey: todayKeyEst,
+            recalculationRunId: run.id
+          }
+        });
+        await tx.rankingSnapshotRow.createMany({ data: buildMarkerRows(dayMarker.id, label) });
+      }
+
       await tx.scoringMatch.deleteMany();
       await tx.scoringGroup.deleteMany();
       await tx.generalRanking.deleteMany();
@@ -211,7 +303,9 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           correctGroupPositions: correctGroupPositionsByParticipant.get(row.participantId) ?? 0,
           correctCruces: correctCrucesByParticipant.get(row.participantId) ?? 0,
           deltaPos: row.deltaPos,
-          deltaPoints: row.deltaPoints
+          deltaPoints: row.deltaPoints,
+          deltaPosPhase: deltaPosPhaseByParticipant.get(row.participantId) ?? null,
+          deltaPosDay: deltaPosDayByParticipant.get(row.participantId) ?? null
         }))
       });
       await tx.rankingSnapshot.updateMany({ where: { isLatest: true }, data: { isLatest: false } });
