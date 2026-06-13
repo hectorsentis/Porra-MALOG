@@ -128,7 +128,7 @@ function HistoricoEventSelector({ filters, historico }: { filters: PublicFilters
         <select name="snapshot" defaultValue={historico.selected?.id ?? ""} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-normal normal-case tracking-normal text-slate-900">
           {historico.events.map((event) => (
             <option key={event.id} value={event.id}>
-              {new Date(event.createdAt).toLocaleString("es-ES")} — {event.label}{event.isLatest ? " (actual)" : ""}
+              {new Date(event.milestoneDate).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} — {event.label}{event.isLatest ? " (actual)" : ""}
             </option>
           ))}
         </select>
@@ -233,7 +233,7 @@ export default async function ClasificacionPage({
                 : activeTab === "semanal"
                   ? `Clasificacion semanal ${temporal?.startDay ?? ""} - ${temporal?.endDay ?? ""}`
                   : historico?.selected
-                    ? `Ranking historico — ${historico.selected.label} (${new Date(historico.selected.createdAt).toLocaleString("es-ES")})`
+                    ? `Ranking historico — ${historico.selected.label} (${new Date(historico.selected.milestoneDate).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })})`
                     : "Ranking historico"}
           </CardTitle>
         </CardHeader>
