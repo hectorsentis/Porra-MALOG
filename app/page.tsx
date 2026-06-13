@@ -1,4 +1,6 @@
-﻿import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ReactNode } from "react";
+import { CountryLabel } from "@/components/CountryLabel";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { PageTitle } from "@/components/PageTitle";
 import { CompositionChart, DepartmentChart, TopTenChart } from "@/components/dashboard/DashboardCharts";
@@ -9,14 +11,48 @@ import { FilterChips } from "@/components/FilterChips";
 
 export const dynamic = "force-dynamic";
 
-function Kpi({ label, value }: { label: string; value: string | number }) {
+function Kpi({ label, value }: { label: string; value: ReactNode }) {
   return (
     <Card>
       <CardContent className="p-4">
         <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-        <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
+        <div className="mt-2 text-2xl font-bold text-slate-950">{value}</div>
       </CardContent>
     </Card>
+  );
+}
+
+type DashboardNextMatch = NonNullable<Awaited<ReturnType<typeof getPublicDashboard>>["nextMatch"]>;
+
+function formatMadridMatchTime(match: DashboardNextMatch) {
+  if (!match.fecha) return match.hora ? `${match.hora} Madrid` : "Fecha por confirmar";
+  const date = new Date(match.fecha);
+  const day = new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Europe/Madrid",
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+  if (match.hora) return `${day} - ${match.hora} Madrid`;
+  const time = new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+  return `${day} - ${time} Madrid`;
+}
+
+function NextMatchValue({ match }: { match: DashboardNextMatch | null }) {
+  if (!match) return <span>Calendario pendiente</span>;
+  return (
+    <span className="block space-y-1">
+      <span className="block text-sm font-semibold text-slate-600">{formatMadridMatchTime(match)}</span>
+      <span className="flex flex-wrap items-center gap-1 text-base font-bold text-slate-950">
+        <CountryLabel value={match.homeTeam} />
+        <span className="text-slate-500">vs</span>
+        <CountryLabel value={match.awayTeam} />
+      </span>
+    </span>
   );
 }
 
@@ -41,7 +77,7 @@ export default async function HomePage({
         <Kpi label="Puntos repartidos" value={data.distributedPoints} />
         <Kpi label="Partidos computados" value={data.computedMatches} />
         <Kpi label="Ultima actualizacion" value={data.lastUpdatedAt ? new Date(data.lastUpdatedAt).toLocaleString("es-ES") : "Pendiente"} />
-        <Kpi label="Estado" value={data.ranking.length ? "Publicado" : "Pendiente de apertura"} />
+        <Kpi label="Proximo partido" value={<NextMatchValue match={data.nextMatch} />} />
       </section>
 
       <section className="dashboard-grid mt-4">

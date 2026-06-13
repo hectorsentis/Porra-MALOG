@@ -1,4 +1,6 @@
 import { unstable_noStore as noStore } from "next/cache";
+import { MatchStatus } from "@prisma/client";
+import { formatCountry } from "@/lib/countries";
 import { prisma } from "@/lib/prisma";
 import type { PublicDashboardData, PublicParticipantProfile } from "./dto";
 import type { PublicFilters } from "./filters";
@@ -11,6 +13,7 @@ const emptyDashboard: PublicDashboardData = {
   distributedPoints: 0,
   computedMatches: 0,
   lastUpdatedAt: null,
+  nextMatch: null,
   ranking: [],
   departmentAverages: [],
   composition: [
@@ -26,17 +29,48 @@ function includes(value: string | null | undefined, filter: string | undefined) 
   return (value ?? "").toLocaleLowerCase("es-ES").includes(filter.toLocaleLowerCase("es-ES"));
 }
 
+function madridDateKey(date: Date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
+function madridStartOfToday() {
+  return new Date(`${madridDateKey()}T00:00:00.000Z`);
+}
+
 export async function getPublicDashboard(filters: PublicFilters = {}): Promise<PublicDashboardData> {
   noStore();
   try {
-    const [classification, participantsCount, computedMatches] = await Promise.all([
+    const [classification, participantsCount, computedMatches, nextMatch] = await Promise.all([
       prisma.generalRanking.findMany({
         orderBy: { pos: "asc" },
         include: { participant: { select: { slug: true } } },
         take: 50
       }),
       prisma.participant.count(),
-      prisma.match.count({ where: { status: "OFFICIAL", finished: true } })
+      prisma.match.count({ where: { status: "OFFICIAL", finished: true } }),
+      prisma.match.findFirst({
+        where: {
+          fecha: { not: null, gte: madridStartOfToday() },
+          status: { notIn: [MatchStatus.OFFICIAL, MatchStatus.VOID] }
+        },
+        orderBy: [{ fecha: "asc" }, { matchNo: "asc" }],
+        select: {
+          matchId: true,
+          fecha: true,
+          hora: true,
+          homeTeamId: true,
+          awayTeamId: true,
+          homeTeam: true,
+          awayTeam: true,
+          homeSlot: true,
+          awaySlot: true
+        }
+      })
     ]);
     const ranking = classification
       .map(toPublicClassificationRow)
@@ -63,6 +97,15 @@ export async function getPublicDashboard(filters: PublicFilters = {}): Promise<P
       distributedPoints,
       computedMatches,
       lastUpdatedAt: classification[0]?.updatedAt.toISOString() ?? null,
+      nextMatch: nextMatch
+        ? {
+            matchId: nextMatch.matchId,
+            fecha: nextMatch.fecha?.toISOString() ?? null,
+            hora: nextMatch.hora,
+            homeTeam: formatCountry(nextMatch.homeTeamId, nextMatch.homeTeam ?? nextMatch.homeSlot ?? "Local"),
+            awayTeam: formatCountry(nextMatch.awayTeamId, nextMatch.awayTeam ?? nextMatch.awaySlot ?? "Visitante")
+          }
+        : null,
       ranking,
       departmentAverages: [...departments.entries()].map(([departamento, value]) => ({
         departamento,

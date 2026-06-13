@@ -216,6 +216,12 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
       }));
 
     await prisma.$transaction(async (tx) => {
+      // Para J1, este marcador se creó tarde (cuando esta lógica se desplegó, M001 y M002
+      // ya estaban recalculados), por lo que su `previous` reflejaba "tras M001+M002" en
+      // vez de "tras M001". Se corrigió una sola vez a mano (UPDATE de RankingSnapshotRow +
+      // GeneralRanking.deltaPosPhase) para que "Inicio de fase J1" represente el estado
+      // tras M001. Para J2+ no hace falta corrección: `previous` ya será "fin de la fase
+      // anterior" en el momento correcto.
       if (currentPhaseGroup && previous.length > 0 && (!lastPhaseSnapshot || lastPhaseSnapshot.phaseGroup !== currentPhaseGroup)) {
         const label = `Inicio de fase ${currentPhaseGroup}`;
         const phaseMarker = await tx.rankingSnapshot.create({

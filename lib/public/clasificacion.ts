@@ -1,7 +1,8 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
-import { getEstDayKey, getEstDayLabel } from "@/lib/utils/timezone";
+import { getMatchDayKey } from "@/lib/utils/timezone";
+import { getMatchEventSnapshots } from "./snapshots";
 import { toPublicClassificationRow } from "./mappers";
 import type { PublicClassificationRow } from "./dto";
 import type { PublicFilters } from "./filters";
@@ -9,6 +10,11 @@ import type { PublicFilters } from "./filters";
 function includes(value: string | null | undefined, filter: string | undefined) {
   if (!filter) return true;
   return (value ?? "").toLocaleLowerCase("es-ES").includes(filter.toLocaleLowerCase("es-ES"));
+}
+
+function formatDayKeyEsLabel(dayKey: string): string {
+  const [year, month, day] = dayKey.split("-");
+  return `${day}/${month}/${year}`;
 }
 
 export type LastMatchInfo = {
@@ -21,6 +27,7 @@ export type LastMatchInfo = {
 
 export type ClassificationOverviewRow = PublicClassificationRow & {
   matchesCount: number;
+  exactScores: number;
   ganadores: number;
   fallos: number;
   pctAcierto: number;
@@ -32,7 +39,7 @@ export type ClassificationOverviewRow = PublicClassificationRow & {
 export type ClassificationOverview = {
   rows: ClassificationOverviewRow[];
   currentPhaseGroup: string | null;
-  estDayLabel: string;
+  dayBaselineLabel: string;
   matchesToday: number;
   topDayGainer: { alias: string; deltaPosDay: number } | null;
   topPhaseGainer: { alias: string; deltaPosPhase: number } | null;
@@ -40,9 +47,8 @@ export type ClassificationOverview = {
 
 export async function getClassificationOverview(filters: PublicFilters = {}): Promise<ClassificationOverview> {
   noStore();
-  const todayKeyEst = getEstDayKey();
 
-  const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches] = await Promise.all([
+  const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, matchEvents] = await Promise.all([
     prisma.generalRanking.findMany({
       orderBy: { pos: "asc" },
       include: { participant: { select: { slug: true } } }
@@ -57,7 +63,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
         signOk: true,
         betId: true,
         match: {
-          select: { fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true }
+          select: { fecha: true, hora: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true }
         }
       },
       orderBy: [{ match: { fecha: "desc" } }, { match: { matchNo: "desc" } }]
@@ -69,9 +75,28 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
     }),
     prisma.match.findMany({
       where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
-      select: { fecha: true }
-    })
+      select: { fecha: true, hora: true }
+    }),
+    getMatchEventSnapshots()
   ]);
+
+  const currentDayKey = matchEvents[0]?.dayKey ?? null;
+  const previousDaySnapshot = matchEvents.find((event) => currentDayKey != null && event.dayKey !== currentDayKey) ?? null;
+
+  const previousDayPosByParticipant = previousDaySnapshot
+    ? new Map(
+        (
+          await prisma.rankingSnapshotRow.findMany({
+            where: { snapshotId: previousDaySnapshot.snapshotId },
+            select: { participantId: true, pos: true }
+          })
+        ).map((row) => [row.participantId, row.pos])
+      )
+    : null;
+
+  const dayBaselineLabel = previousDaySnapshot
+    ? `el cierre del ${formatDayKeyEsLabel(previousDaySnapshot.dayKey)}`
+    : "—";
 
   const matchesCountByParticipant = new Map(matchCounts.map((entry) => [entry.participantId, entry._count._all]));
 
@@ -84,7 +109,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
 
   const pointsTodayByParticipant = new Map<string, number>();
   for (const row of scoringRows) {
-    if (!row.match.fecha || getEstDayKey(row.match.fecha) !== todayKeyEst) continue;
+    if (!row.match.fecha || currentDayKey == null || getMatchDayKey(row.match.fecha, row.match.hora) !== currentDayKey) continue;
     pointsTodayByParticipant.set(row.participantId, (pointsTodayByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
   }
 
@@ -131,9 +156,14 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
         };
       }
 
+      const previousDayPos = previousDayPosByParticipant?.get(row.participantId);
+      const deltaPosDay = previousDayPos != null ? previousDayPos - row.pos : null;
+
       return {
         ...base,
+        deltaPosDay,
         matchesCount,
+        exactScores: row.exactScores,
         ganadores,
         fallos,
         pctAcierto,
@@ -144,7 +174,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
     })
     .filter((row): row is ClassificationOverviewRow => row != null);
 
-  const matchesToday = officialMatches.filter((match) => match.fecha && getEstDayKey(match.fecha) === todayKeyEst).length;
+  const matchesToday = currentDayKey == null ? 0 : officialMatches.filter((match) => match.fecha && getMatchDayKey(match.fecha, match.hora) === currentDayKey).length;
 
   const topDayGainer = rows.reduce<{ alias: string; deltaPosDay: number } | null>((top, row) => {
     if (row.deltaPosDay != null && row.deltaPosDay > 0 && (!top || row.deltaPosDay > top.deltaPosDay)) {
@@ -163,7 +193,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
   return {
     rows,
     currentPhaseGroup: phaseSnapshot?.phaseGroup ?? null,
-    estDayLabel: getEstDayLabel(),
+    dayBaselineLabel,
     matchesToday,
     topDayGainer,
     topPhaseGainer

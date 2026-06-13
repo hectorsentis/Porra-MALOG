@@ -52,7 +52,7 @@ export function ClassificationTable({
       },
       { accessorKey: "departamento", header: "Dept" },
       { accessorKey: "pointsTotal", header: "Pts totales" },
-      { accessorKey: "pointsToday", header: "Pts hoy" },
+      { accessorKey: "pointsToday", header: "Pts último día" },
       { accessorKey: "exactScores", header: "Exactos" },
       { accessorKey: "ganadores", header: "Ganadores" },
       { accessorKey: "fallos", header: "Fallos" },

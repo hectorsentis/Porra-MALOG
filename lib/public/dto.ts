@@ -22,6 +22,13 @@ export type PublicDashboardData = {
   distributedPoints: number;
   computedMatches: number;
   lastUpdatedAt: string | null;
+  nextMatch: {
+    matchId: string;
+    fecha: string | null;
+    hora: string | null;
+    homeTeam: string;
+    awayTeam: string;
+  } | null;
   ranking: PublicClassificationRow[];
   departmentAverages: Array<{ departamento: string; averagePoints: number; participants: number }>;
   composition: Array<{ name: string; value: number }>;

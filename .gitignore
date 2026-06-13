@@ -6,7 +6,7 @@ node_modules
 coverage
 .DS_Store
 *.log
-
+.env.testing
 # Keep official input files local unless intentionally committed
 # data/input/*.xlsx
 # data/input/*.pbix

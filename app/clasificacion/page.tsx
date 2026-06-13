@@ -207,13 +207,13 @@ export default async function ClasificacionPage({
             <span className="mx-2 text-slate-400">·</span>
             <span>Δ fase: cambio de posicion desde el inicio de la fase actual</span>
             <span className="mx-2 text-slate-400">·</span>
-            <span>Δ dia: cambio de posicion desde {overview.estDayLabel}</span>
+            <span>Δ dia: cambio de posicion desde {overview.dayBaselineLabel}</span>
           </div>
           <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi label="Lider" value={overview.rows[0] ? `${overview.rows[0].alias} (${overview.rows[0].pointsTotal})` : "—"} />
-            <Kpi label="Mayor subida hoy" value={overview.topDayGainer ? `${overview.topDayGainer.alias} (+${overview.topDayGainer.deltaPosDay})` : "—"} />
+            <Kpi label="Mayor subida (último día)" value={overview.topDayGainer ? `${overview.topDayGainer.alias} (+${overview.topDayGainer.deltaPosDay})` : "—"} />
             <Kpi label="Mayor subida en fase" value={overview.topPhaseGainer ? `${overview.topPhaseGainer.alias} (+${overview.topPhaseGainer.deltaPosPhase})` : "—"} />
-            <Kpi label="Partidos computados hoy" value={overview.matchesToday} />
+            <Kpi label="Partidos computados (último día)" value={overview.matchesToday} />
           </section>
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
             <span className="font-semibold text-slate-700">Mostrar deltas:</span>
