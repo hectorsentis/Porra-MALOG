@@ -48,6 +48,6 @@ export function getMatchKickoffUtc(fecha: Date, hora: string | null): Date {
   return new Date(naiveUtc - offsetMinutes * 60000);
 }
 
-export function getMatchDayKey(fecha: Date, hora: string | null): string {
-  return getEstDayKey(getMatchKickoffUtc(fecha, hora));
+export function getMatchMadridDayKey(fecha: Date): string {
+  return fecha.toISOString().slice(0, 10);
 }

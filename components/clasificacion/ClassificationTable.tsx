@@ -20,9 +20,7 @@ function LastMatchBadge({ lastMatch }: { lastMatch: ClassificationOverviewRow["l
 
 export function ClassificationTable({
   rows,
-  delta = "both",
-  topDayGainerAlias = null,
-  topPhaseGainerAlias = null
+  delta = "both"
 }: {
   rows: ClassificationOverviewRow[];
   delta?: "both" | "phase" | "day";
@@ -119,18 +117,15 @@ export function ClassificationTable({
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => {
-              const isTopGainer = row.original.alias === topDayGainerAlias || row.original.alias === topPhaseGainerAlias;
-              return (
-                <tr key={row.id} className={`border-t border-slate-100 ${isTopGainer ? "bg-emerald-50" : ""}`}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-2">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id} className="border-t border-slate-100">
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-3 py-2">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

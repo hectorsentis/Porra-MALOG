@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getMatchDayKey, getMatchKickoffUtc } from "@/lib/utils/timezone";
+import { getMatchMadridDayKey, getMatchKickoffUtc } from "@/lib/utils/timezone";
 
 export type MatchEventSnapshot = {
   snapshotId: string;
@@ -41,7 +41,7 @@ export async function getMatchEventSnapshots(): Promise<MatchEventSnapshot[]> {
         fecha: match.fecha,
         matchNo: match.matchNo,
         isLatest: snapshot.isLatest,
-        dayKey: getMatchDayKey(match.fecha, match.hora)
+        dayKey: getMatchMadridDayKey(match.fecha)
       };
     })
     .filter((event): event is MatchEventSnapshot => event != null)

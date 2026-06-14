@@ -1,7 +1,7 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
-import { getMatchDayKey } from "@/lib/utils/timezone";
+import { getMatchMadridDayKey } from "@/lib/utils/timezone";
 import { getMatchEventSnapshots } from "./snapshots";
 import { toPublicClassificationRow } from "./mappers";
 import type { PublicClassificationRow } from "./dto";
@@ -63,7 +63,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
         signOk: true,
         betId: true,
         match: {
-          select: { fecha: true, hora: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true }
+          select: { fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true }
         }
       },
       orderBy: [{ match: { fecha: "desc" } }, { match: { matchNo: "desc" } }]
@@ -75,7 +75,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
     }),
     prisma.match.findMany({
       where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
-      select: { fecha: true, hora: true }
+      select: { fecha: true }
     }),
     getMatchEventSnapshots()
   ]);
@@ -109,7 +109,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
 
   const pointsTodayByParticipant = new Map<string, number>();
   for (const row of scoringRows) {
-    if (!row.match.fecha || currentDayKey == null || getMatchDayKey(row.match.fecha, row.match.hora) !== currentDayKey) continue;
+    if (!row.match.fecha || currentDayKey == null || getMatchMadridDayKey(row.match.fecha) !== currentDayKey) continue;
     pointsTodayByParticipant.set(row.participantId, (pointsTodayByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
   }
 
@@ -174,7 +174,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
     })
     .filter((row): row is ClassificationOverviewRow => row != null);
 
-  const matchesToday = currentDayKey == null ? 0 : officialMatches.filter((match) => match.fecha && getMatchDayKey(match.fecha, match.hora) === currentDayKey).length;
+  const matchesToday = currentDayKey == null ? 0 : officialMatches.filter((match) => match.fecha && getMatchMadridDayKey(match.fecha) === currentDayKey).length;
 
   const topDayGainer = rows.reduce<{ alias: string; deltaPosDay: number } | null>((top, row) => {
     if (row.deltaPosDay != null && row.deltaPosDay > 0 && (!top || row.deltaPosDay > top.deltaPosDay)) {
