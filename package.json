@@ -13,6 +13,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "import:excel": "tsx scripts/import-excel.ts",
     "import:excel:dry-run": "tsx scripts/import-excel.ts --dry-run",
+    "seed:third-combos": "tsx scripts/seed-third-place-combos.ts",
+    "recalculate:tournament": "tsx scripts/recalculate-tournament.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

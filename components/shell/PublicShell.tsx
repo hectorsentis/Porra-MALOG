@@ -9,6 +9,7 @@ const nav = [
   ["/evolucion", "Evolucion"],
   ["/apuestas", "Apuestas"],
   ["/partidos", "Partidos"],
+  ["/fixture", "Fixture"],
   ["/departamentos", "Departamentos"],
   ["/simulador", "Simulador"],
   ["/participantes", "Participantes"],

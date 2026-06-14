@@ -48,7 +48,7 @@ export async function getPublicDashboard(filters: PublicFilters = {}): Promise<P
     const [classification, participantsCount, computedMatches, nextMatch] = await Promise.all([
       prisma.generalRanking.findMany({
         orderBy: { pos: "asc" },
-        include: { participant: { select: { slug: true } } },
+        include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } },
         take: 50
       }),
       prisma.participant.count(),
@@ -135,14 +135,14 @@ export async function getPublicParticipant(slug: string): Promise<PublicParticip
       where: { slug },
       select: {
         slug: true,
+        alias: true,
+        departamento: true,
+        rango: true,
         matchBets: { select: { id: true } },
         generalRanking: {
           select: {
             pos: true,
             participantId: true,
-            alias: true,
-            departamento: true,
-            rango: true,
             pointsMatches: true,
             pointsGroups: true,
             pointsEliminatorias: true,

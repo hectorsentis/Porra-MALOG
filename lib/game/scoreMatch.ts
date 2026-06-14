@@ -21,6 +21,21 @@ function isGroupPhase(fase?: string | null): boolean {
   return (fase ?? "").toLocaleUpperCase("es-ES").includes("GRUPO");
 }
 
+function isKnockoutPhase(fase?: string | null): boolean {
+  const raw = (fase ?? "").toLocaleUpperCase("es-ES");
+  return Boolean(raw && !isGroupPhase(raw));
+}
+
+function knockoutMultiplier(fase: string | null | undefined): number {
+  const raw = (fase ?? "").toLocaleUpperCase("es-ES");
+  if (raw.includes("FINAL")) return 6;
+  if (raw.includes("SEMIF") || raw.includes("1/2") || raw.includes("SF")) return 5;
+  if (raw.includes("CUART") || raw.includes("1/4") || raw.includes("QF")) return 4;
+  if (raw.includes("OCTAV") || raw.includes("1/8") || raw.includes("R16")) return 3;
+  if (raw.includes("1/16") || raw.includes("DIECISEIS") || raw.includes("R32")) return 2;
+  return 1;
+}
+
 function knockoutQualifiedPoints(fase: string | null | undefined, rules: GameRules): number {
   const raw = (fase ?? "").toLocaleUpperCase("es-ES");
   if (raw.includes("TERCER") || raw.includes("THIRD")) return rules.koThirdPlace;
@@ -47,31 +62,34 @@ export function scoreMatch(
   const realSign = getSign(result.homeGoals, result.awayGoals);
   const realGoalDiff = getGoalDiff(result.homeGoals, result.awayGoals);
   const finished = result.finished !== false && result.homeGoals != null && result.awayGoals != null;
+  const koPhase = isKnockoutPhase(result.fase ?? bet.fase);
+  const groupPhase = !koPhase;
 
-  const exactOk = finished && bet.predHomeGoals === result.homeGoals && bet.predAwayGoals === result.awayGoals;
-  const diffOk = finished && predGoalDiff != null && predGoalDiff === realGoalDiff;
-  const signOk = finished && predSign != null && predSign === realSign;
+  const exactOk = groupPhase && finished && bet.predHomeGoals === result.homeGoals && bet.predAwayGoals === result.awayGoals;
+  const diffOk = groupPhase && finished && predGoalDiff != null && predGoalDiff === realGoalDiff;
+  const signOk = groupPhase && finished && predSign != null && predSign === realSign;
   const qualifiedOk = Boolean(
-    finished &&
+    koPhase &&
+      finished &&
       bet.predQualifiedTeamId &&
       result.qualifiedTeamId &&
       sameTeam(bet.predQualifiedTeamId, result.qualifiedTeamId)
   );
   const cruceExactoOk = Boolean(
     finished &&
-      !isGroupPhase(result.fase) &&
+      koPhase &&
       bet.predHomeTeamId &&
       bet.predAwayTeamId &&
-      sameTeam(bet.predHomeTeamId, result.homeTeamId) &&
-      sameTeam(bet.predAwayTeamId, result.awayTeamId)
+      ((sameTeam(bet.predHomeTeamId, result.homeTeamId) && sameTeam(bet.predAwayTeamId, result.awayTeamId)) ||
+        (sameTeam(bet.predHomeTeamId, result.awayTeamId) && sameTeam(bet.predAwayTeamId, result.homeTeamId)))
   );
   const spainMatch = isSpainMatch(result);
-  const multiplier = spainMatch ? rules.spainMultiplier : 1;
+  const multiplier = koPhase ? knockoutMultiplier(result.fase ?? bet.fase) : spainMatch ? rules.spainMultiplier : 1;
 
   const baseResultPoints = exactOk ? rules.exactScore : diffOk ? rules.correctGoalDiff : signOk ? rules.correctSign : 0;
-  const pointsResult = baseResultPoints * multiplier;
+  const pointsResult = groupPhase ? baseResultPoints * multiplier : 0;
   const pointsQualified = qualifiedOk ? knockoutQualifiedPoints(result.fase, rules) : 0;
-  const pointsCruceExacto = cruceExactoOk ? rules.exactCrossing : 0;
+  const pointsCruceExacto = cruceExactoOk ? rules.exactCrossing * multiplier : 0;
 
   return {
     betId: bet.betId,
@@ -95,4 +113,3 @@ export function scoreMatch(
     pointsTotal: pointsResult + pointsQualified + pointsCruceExacto
   };
 }
-

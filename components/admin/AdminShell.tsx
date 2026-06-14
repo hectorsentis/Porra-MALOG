@@ -8,6 +8,7 @@ const nav = [
   ["/admin/import", "Import"],
   ["/admin/partidos", "Partidos"],
   ["/admin/resultados", "Resultados"],
+  ["/admin/bonus", "Bonus"],
   ["/admin/bote", "Bote"],
   ["/admin/reglas", "Reglas"],
   ["/admin/logs", "Logs"],

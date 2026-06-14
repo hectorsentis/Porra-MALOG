@@ -43,6 +43,7 @@ describe("scoreMatch random results", () => {
       const bet = {
         participantId: "P1",
         matchId: `M${i}`,
+        fase: "GRUPOS",
         predHomeGoals,
         predAwayGoals,
         predHomeTeamId,
@@ -51,6 +52,7 @@ describe("scoreMatch random results", () => {
       };
       const result = {
         matchId: `M${i}`,
+        fase: "GRUPOS",
         homeGoals,
         awayGoals,
         homeTeamId,
@@ -96,22 +98,13 @@ describe("scoreMatch random results", () => {
             : 0;
       expect(score.pointsResult).toBe(baseResultPoints * score.multiplier);
 
-      // the qualified-team bonus only fires when the prediction matches the real qualifier
-      if (score.qualifiedOk) {
-        expect((predQualifiedTeamId ?? "").toUpperCase()).toBe(qualifiedTeamId.toUpperCase());
-        expect(score.pointsQualified).toBe(defaultRules.qualifiedTeam);
-      } else {
-        expect(score.pointsQualified).toBe(0);
-      }
+      // group matches never award the eliminatory qualified-team bonus
+      expect(score.qualifiedOk).toBe(false);
+      expect(score.pointsQualified).toBe(0);
 
-      // the exact-crossing bonus only fires when both predicted teams match the real fixture
-      if (score.cruceExactoOk) {
-        expect((predHomeTeamId ?? "").toUpperCase()).toBe(homeTeamId.toUpperCase());
-        expect((predAwayTeamId ?? "").toUpperCase()).toBe(awayTeamId.toUpperCase());
-        expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing);
-      } else {
-        expect(score.pointsCruceExacto).toBe(0);
-      }
+      // group matches never award exact-crossing points
+      expect(score.cruceExactoOk).toBe(false);
+      expect(score.pointsCruceExacto).toBe(0);
     }
   });
 

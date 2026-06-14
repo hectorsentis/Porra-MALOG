@@ -26,7 +26,7 @@ function includes(value: string | null | undefined, filter: string | undefined) 
 
 export async function getAdvancedStatistics(filters: PublicFilters) {
   const [classificationRows, snapshots, betBonusRows, scoringMatches, betMatchRows, boteConfig] = await Promise.all([
-    prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { slug: true } } } }),
+    prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } } }),
     prisma.participantScoreSnapshot.findMany({ orderBy: { createdAt: "asc" }, take: 5000 }),
     prisma.betBonus.findMany({
       select: {
@@ -205,10 +205,10 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
   });
 
   const participantMeta = new Map(filteredClassificationRows.map((row) => [row.participantId, {
-    alias: row.alias,
-    slug: row.participant?.slug ?? "",
-    departamento: row.departamento,
-    rango: row.rango
+    alias: row.participant.alias,
+    slug: row.participant.slug,
+    departamento: row.participant.departamento,
+    rango: row.participant.rango
   }]));
 
   type AwardCandidate = { participantId: string; metric: number; detail: string };
@@ -320,7 +320,7 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
     const popularity = picks.reduce((sum, pick) => sum + filteredBetBonusRows.filter((other) => Object.values(other).includes(pick)).length, 0);
     const rankingRow = classificationRows.find((row) => row.participantId === bet.participantId);
     return {
-      alias: rankingRow?.alias ?? bet.participantId,
+      alias: rankingRow?.participant.alias ?? bet.participantId,
       rarity: picks.length ? Math.round(100 - popularity / picks.length) : 0,
       points: rankingRow?.pointsTotal ?? 0
     };

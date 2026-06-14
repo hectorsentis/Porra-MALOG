@@ -21,7 +21,7 @@ function readNumber(value?: string) {
 export async function getSimulatorData(filters: PublicFilters & { homeGoals?: string; awayGoals?: string; qualifiedTeamId?: string }) {
   noStore();
   const [rankings, matches] = await Promise.all([
-    prisma.generalRanking.findMany({ orderBy: { pos: "asc" } }),
+    prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { alias: true, departamento: true, rango: true } } } }),
     prisma.match.findMany({
       where: { status: { not: "OFFICIAL" } },
       select: { matchId: true, matchNo: true, fase: true, grupo: true, jornadaId: true, fecha: true, homeTeamId: true, awayTeamId: true, homeTeam: true, awayTeam: true, homeSlot: true, awaySlot: true },
@@ -42,19 +42,22 @@ export async function getSimulatorData(filters: PublicFilters & { homeGoals?: st
   const awayGoals = readNumber(filters.awayGoals);
   const baseRanking = rankings.map((row) => ({
     participantId: row.participantId,
-    alias: row.alias,
-    departamento: row.departamento,
-    rango: row.rango,
+    alias: row.participant.alias,
+    departamento: row.participant.departamento,
+    rango: row.participant.rango,
+    pos: row.pos,
     pointsMatches: row.pointsMatches,
     pointsGroups: row.pointsGroups,
     pointsEliminatorias: row.pointsEliminatorias,
     pointsBonus: row.pointsBonus,
+    pointsTotal: row.pointsTotal,
+    deltaPoints: row.deltaPoints,
     previousPos: row.pos,
     previousPoints: row.pointsTotal
   }));
 
   if (!selectedMatchId || homeGoals == null || awayGoals == null) {
-    return { availableMatches, selectedMatchId, homeGoals, awayGoals, projected: null, baseRanking: rankings.slice(0, 12) };
+    return { availableMatches, selectedMatchId, homeGoals, awayGoals, projected: null, baseRanking: baseRanking.slice(0, 12) };
   }
 
   const match = await prisma.match.findUnique({
@@ -62,7 +65,7 @@ export async function getSimulatorData(filters: PublicFilters & { homeGoals?: st
     include: { bets: true }
   });
   if (!match || match.status === "OFFICIAL" || !isResolvedMatch(match)) {
-    return { availableMatches, selectedMatchId, homeGoals, awayGoals, projected: null, baseRanking: rankings.slice(0, 12) };
+    return { availableMatches, selectedMatchId, homeGoals, awayGoals, projected: null, baseRanking: baseRanking.slice(0, 12) };
   }
 
   const scores = match.bets.map((bet) => scoreMatch(
@@ -89,5 +92,5 @@ export async function getSimulatorData(filters: PublicFilters & { homeGoals?: st
     }
   ));
   const projected = simulateRanking({ participants: baseRanking, matchScores: scores }).slice(0, 20);
-  return { availableMatches, selectedMatchId, homeGoals, awayGoals, projected, baseRanking: rankings.slice(0, 12) };
+  return { availableMatches, selectedMatchId, homeGoals, awayGoals, projected, baseRanking: baseRanking.slice(0, 12) };
 }

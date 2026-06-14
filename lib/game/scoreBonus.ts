@@ -5,8 +5,11 @@ function normalize(value?: string | null): string {
   return (value ?? "").trim().toLocaleUpperCase("es-ES");
 }
 
-function same(left?: string | null, right?: string | null): boolean {
-  return Boolean(left && right && normalize(left) === normalize(right));
+function same(left?: string | null, right?: string | string[] | null): boolean {
+  if (!left || !right) return false;
+  const actual = Array.isArray(right) ? right : [right];
+  const expected = normalize(left);
+  return actual.map(normalize).some((value) => value && value === expected);
 }
 
 function countOverlap(left: Array<string | null | undefined> = [], right: Array<string | null | undefined> = []): number {

@@ -293,6 +293,27 @@ export async function saveBoteAction(formData: FormData) {
   redirect("/admin/bote?saved=1");
 }
 
+export async function saveTournamentBonusAction(formData: FormData) {
+  await requireAdmin();
+  const maximoGoleador = String(formData.get("maximoGoleador") ?? "").trim() || null;
+  const db = prisma as unknown as {
+    tournamentBonusResult: {
+      upsert: (args: {
+        where: { id: string };
+        update: { maximoGoleador: string | null; updatedBy: string };
+        create: { id: string; maximoGoleador: string | null; updatedBy: string };
+      }) => Promise<unknown>;
+    };
+  };
+  await db.tournamentBonusResult.upsert({
+    where: { id: "default" },
+    update: { maximoGoleador, updatedBy: "admin" },
+    create: { id: "default", maximoGoleador, updatedBy: "admin" }
+  });
+  await prisma.adminLog.create({ data: { action: "BONUS_UPDATED", message: "Bonus final actualizado desde admin." } });
+  redirect("/admin/bonus?saved=1");
+}
+
 export async function saveRulesAction(formData: FormData) {
   await requireAdmin();
   const keys = formData.getAll("ruleKey").map((value) => String(value));
@@ -345,13 +366,9 @@ export async function rollbackAction() {
     }
     await tx.rankingSnapshot.update({ where: { id: snapshot.id }, data: { isPublished: true, isLatest: true } });
     await tx.generalRanking.deleteMany();
-    await tx.generalRanking.createMany({
-      data: snapshot.rows.map((row) => ({
+    const rankingRows = snapshot.rows.map((row) => ({
         pos: row.pos,
         participantId: row.participantId,
-        alias: row.alias,
-        departamento: row.departamento,
-        rango: row.rango,
         pointsMatches: row.pointsMatches,
         pointsGroups: row.pointsGroups,
         pointsEliminatorias: row.pointsEliminatorias,
@@ -359,11 +376,11 @@ export async function rollbackAction() {
         pointsTotal: row.pointsTotal,
         deltaPos: row.deltaPos,
         deltaPoints: row.deltaPoints
-      }))
+      }));
+    await tx.generalRanking.createMany({
+      data: rankingRows as unknown as NonNullable<Parameters<typeof tx.generalRanking.createMany>[0]>["data"]
     });
     await tx.adminLog.create({ data: { action: "ROLLBACK", message: `Rollback a snapshot ${snapshot.id}` } });
   });
   redirect("/admin/rollback?ok=1");
 }
-
-

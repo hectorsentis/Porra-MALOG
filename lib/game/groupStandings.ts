@@ -134,11 +134,11 @@ function sortGroupTable(rows: TableRow[], matches: GroupMatchInput[]): TableRow[
         const h2hA = h2h.get(a.teamId)!;
         const h2hB = h2h.get(b.teamId)!;
         return (
+          b.dg - a.dg ||
+          b.gf - a.gf ||
           h2hB.pts - h2hA.pts ||
           h2hB.gf - h2hB.gc - (h2hA.gf - h2hA.gc) ||
           h2hB.gf - h2hA.gf ||
-          b.dg - a.dg ||
-          b.gf - a.gf ||
           a.tieBreakerRank - b.tieBreakerRank
         );
       });

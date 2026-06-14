@@ -7,6 +7,9 @@ import { getActiveGameRules } from "./ruleConfig";
 import { isOfficialMatchForScoring } from "./matchStatus";
 import { getEstDayKey } from "@/lib/utils/timezone";
 import type { GroupStandingInput } from "./types";
+import { recalculateTournamentEngine } from "./tournamentEngine";
+import { getTournamentBonusResult } from "./bonusResults";
+import { scoreBonus } from "./scoreBonus";
 
 export { isOfficialMatchForScoring } from "./matchStatus";
 
@@ -54,7 +57,9 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
   const currentPhaseGroup = phaseGroupOf(eventMatch?.fase, eventMatch?.jornadaId);
 
   try {
-    const [participants, bets, matches, previous, rules, teams, groupBets, lastPhaseSnapshot, lastDaySnapshot] = await Promise.all([
+    await recalculateTournamentEngine(prisma);
+
+    const [participants, bets, matches, previous, rules, teams, groupBets, bonusBets, bonusResult, lastPhaseSnapshot, lastDaySnapshot] = await Promise.all([
       prisma.participant.findMany(),
       prisma.betMatch.findMany(),
       prisma.match.findMany(),
@@ -62,6 +67,8 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
       getActiveGameRules(),
       prisma.team.findMany(),
       prisma.betGroupPosition.findMany(),
+      prisma.betBonus.findMany(),
+      getTournamentBonusResult(prisma),
       prisma.rankingSnapshot.findFirst({
         where: { trigger: "phase-start" },
         orderBy: { createdAt: "desc" },
@@ -156,6 +163,30 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
       if (score.exactPositionOk) bump(correctGroupPositionsByParticipant, score.participantId);
     }
 
+    const bonusScores = bonusResult.bonusLocked
+      ? bonusBets.map((bet) =>
+          scoreBonus(
+            {
+              participantId: bet.participantId,
+              campeon: bet.campeon,
+              subcampeon: bet.subcampeon,
+              semifinalistas: [bet.semifinalista1, bet.semifinalista2, bet.semifinalista3, bet.semifinalista4],
+              maximoGoleador: bet.maximoGoleador,
+              seleccionMasGoleadora: bet.seleccionMasGoleadora,
+              seleccionMasGoleada: bet.seleccionMasGoleada,
+              seleccionMenosGoleadora: bet.seleccionMenosGoleadora,
+              seleccionMenosGoleada: bet.seleccionMenosGoleada,
+              equipoRevelacion: bet.equipoRevelacion,
+              equipoDecepcion: bet.equipoDecepcion,
+              totalGolesTorneo: bet.totalGolesTorneo
+            },
+            bonusResult,
+            rules
+          )
+        )
+      : [];
+    const pointsBonusByParticipant = new Map(bonusScores.map((score) => [score.participantId, score.pointsTotal]));
+
     const ranking = calculateRanking(
       participants.map((participant) => {
         const prev = previousByParticipant.get(participant.participantId);
@@ -167,7 +198,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           pointsMatches: pointsMatchesByParticipant.get(participant.participantId) ?? 0,
           pointsGroups: pointsGroupsByParticipant.get(participant.participantId) ?? 0,
           pointsEliminatorias: pointsKoByParticipant.get(participant.participantId) ?? 0,
-          pointsBonus: prev?.pointsBonus ?? 0,
+          pointsBonus: pointsBonusByParticipant.get(participant.participantId) ?? 0,
           previousPos: prev?.pos,
           previousPoints: prev?.pointsTotal
         };
@@ -193,27 +224,30 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
     }
 
     const buildMarkerRows = (snapshotId: string, label: string) =>
-      previous.map((row) => ({
-        snapshotId,
-        participantId: row.participantId,
-        alias: row.alias,
-        departamento: row.departamento,
-        rango: row.rango,
-        pos: row.pos,
-        previousPos: null,
-        deltaPos: row.deltaPos,
-        deltaPoints: row.deltaPoints,
-        pointsMatches: row.pointsMatches,
-        pointsGroups: row.pointsGroups,
-        pointsEliminatorias: row.pointsEliminatorias,
-        pointsBonus: row.pointsBonus,
-        pointsTotal: row.pointsTotal,
-        pointsGainedThisRun: 0,
-        eventLabel: label,
-        phase: null,
-        matchday: null,
-        matchId: null
-      }));
+      previous.map((row) => {
+        const participant = participants.find((item) => item.participantId === row.participantId);
+        return {
+          snapshotId,
+          participantId: row.participantId,
+          alias: participant?.alias ?? row.participantId,
+          departamento: participant?.departamento ?? null,
+          rango: participant?.rango ?? null,
+          pos: row.pos,
+          previousPos: null,
+          deltaPos: row.deltaPos,
+          deltaPoints: row.deltaPoints,
+          pointsMatches: row.pointsMatches,
+          pointsGroups: row.pointsGroups,
+          pointsEliminatorias: row.pointsEliminatorias,
+          pointsBonus: row.pointsBonus,
+          pointsTotal: row.pointsTotal,
+          pointsGainedThisRun: 0,
+          eventLabel: label,
+          phase: null,
+          matchday: null,
+          matchId: null
+        };
+      });
 
     await prisma.$transaction(async (tx) => {
       // Para J1, este marcador se creó tarde (cuando esta lógica se desplegó, M001 y M002
@@ -254,6 +288,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
 
       await tx.scoringMatch.deleteMany();
       await tx.scoringGroup.deleteMany();
+      await tx.scoringBonus.deleteMany();
       await tx.generalRanking.deleteMany();
       await tx.scoringMatch.createMany({
         data: scores.map((score) => ({
@@ -290,13 +325,28 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           pointsTotal: score.pointsTotal
         }))
       });
-      await tx.generalRanking.createMany({
-        data: ranking.map((row) => ({
+      if (bonusScores.length > 0) {
+        await tx.scoringBonus.createMany({
+          data: bonusScores.map((score) => ({
+            participantId: score.participantId,
+            campeonOk: score.campeonOk,
+            subcampeonOk: score.subcampeonOk,
+            semifinalistasOk: score.semifinalistasOk,
+            maximoGoleadorOk: score.maximoGoleadorOk,
+            seleccionMasGoleadoraOk: score.seleccionMasGoleadoraOk,
+            seleccionMasGoleadaOk: score.seleccionMasGoleadaOk,
+            seleccionMenosGoleadoraOk: score.seleccionMenosGoleadoraOk,
+            seleccionMenosGoleadaOk: score.seleccionMenosGoleadaOk,
+            equipoRevelacionOk: score.equipoRevelacionOk,
+            equipoDecepcionOk: score.equipoDecepcionOk,
+            totalGolesTorneoOk: score.totalGolesTorneoOk,
+            pointsTotal: score.pointsTotal
+          }))
+        });
+      }
+      const rankingRows = ranking.map((row) => ({
           pos: row.pos,
           participantId: row.participantId,
-          alias: row.alias,
-          departamento: row.departamento,
-          rango: row.rango,
           pointsMatches: row.pointsMatches,
           pointsGroups: row.pointsGroups,
           pointsEliminatorias: row.pointsEliminatorias,
@@ -312,7 +362,9 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           deltaPoints: row.deltaPoints,
           deltaPosPhase: deltaPosPhaseByParticipant.get(row.participantId) ?? null,
           deltaPosDay: deltaPosDayByParticipant.get(row.participantId) ?? null
-        }))
+        }));
+      await tx.generalRanking.createMany({
+        data: rankingRows as unknown as NonNullable<Parameters<typeof tx.generalRanking.createMany>[0]>["data"]
       });
       await tx.rankingSnapshot.updateMany({ where: { isLatest: true }, data: { isLatest: false } });
       const snapshot = await tx.rankingSnapshot.create({
@@ -369,4 +421,3 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
     throw error;
   }
 }
-

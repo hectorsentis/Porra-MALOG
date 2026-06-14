@@ -7,6 +7,7 @@ import { scoreMatch } from "@/lib/game/scoreMatch";
 import { simulateRanking } from "@/lib/game/simulator";
 import { isOfficialMatchForScoring } from "@/lib/game/recalculateAll";
 import { predictionSign, summarizePredictionDistribution } from "@/lib/public/matchStats";
+import { computeGroupStandings } from "@/lib/game/groupStandings";
 
 describe("scoreMatch", () => {
   it("scores exact result", () => {
@@ -51,12 +52,13 @@ describe("scoreMatch", () => {
 
   it("scores qualified team", () => {
     const score = scoreMatch(
-      { participantId: "P1", matchId: "M1", predHomeGoals: 1, predAwayGoals: 1, predQualifiedTeamId: "ARG" },
-      { matchId: "M1", homeGoals: 1, awayGoals: 1, qualifiedTeamId: "ARG", finished: true }
+      { participantId: "P1", matchId: "M1", fase: "R32", predHomeGoals: 9, predAwayGoals: 9, predQualifiedTeamId: "ARG" },
+      { matchId: "M1", fase: "R32", homeGoals: 1, awayGoals: 1, qualifiedTeamId: "ARG", finished: true }
     );
 
     expect(score.qualifiedOk).toBe(true);
-    expect(score.pointsQualified).toBe(defaultRules.qualifiedTeam);
+    expect(score.pointsQualified).toBe(defaultRules.koR32Qualified);
+    expect(score.pointsResult).toBe(0);
   });
 
   it("scores exact KO crossing", () => {
@@ -64,6 +66,7 @@ describe("scoreMatch", () => {
       {
         participantId: "P1",
         matchId: "M1",
+        fase: "R32",
         predHomeTeamId: "ESP",
         predAwayTeamId: "FRA",
         predHomeGoals: 2,
@@ -71,6 +74,7 @@ describe("scoreMatch", () => {
       },
       {
         matchId: "M1",
+        fase: "R32",
         homeTeamId: "ESP",
         awayTeamId: "FRA",
         homeGoals: 1,
@@ -81,7 +85,32 @@ describe("scoreMatch", () => {
 
     expect(score.cruceExactoOk).toBe(true);
     expect(score.spainMatch).toBe(true);
-    expect(score.multiplier).toBe(defaultRules.spainMultiplier);
+    expect(score.multiplier).toBe(2);
+    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing * 2);
+  });
+
+  it("scores exact KO crossing with reversed team order", () => {
+    const score = scoreMatch(
+      {
+        participantId: "P1",
+        matchId: "M1",
+        fase: "R16",
+        predHomeTeamId: "FRA",
+        predAwayTeamId: "ESP"
+      },
+      {
+        matchId: "M1",
+        fase: "R16",
+        homeTeamId: "ESP",
+        awayTeamId: "FRA",
+        homeGoals: 1,
+        awayGoals: 0,
+        finished: true
+      }
+    );
+
+    expect(score.cruceExactoOk).toBe(true);
+    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing * 3);
   });
 
   it("does not score exact crossing for group-stage matches", () => {
@@ -134,6 +163,31 @@ describe("scoreGroups", () => {
   });
 });
 
+describe("computeGroupStandings", () => {
+  it("uses overall goal difference before head-to-head for tied teams", () => {
+    const standings = computeGroupStandings(
+      [
+        { matchId: "M1", fase: "GRUPOS", grupo: "A", homeTeamId: "A1", awayTeamId: "A2", homeGoals: 0, awayGoals: 1, finished: true, status: "OFFICIAL" },
+        { matchId: "M2", fase: "GRUPOS", grupo: "A", homeTeamId: "A1", awayTeamId: "A3", homeGoals: 4, awayGoals: 0, finished: true, status: "OFFICIAL" },
+        { matchId: "M3", fase: "GRUPOS", grupo: "A", homeTeamId: "A1", awayTeamId: "A4", homeGoals: 1, awayGoals: 0, finished: true, status: "OFFICIAL" },
+        { matchId: "M4", fase: "GRUPOS", grupo: "A", homeTeamId: "A2", awayTeamId: "A3", homeGoals: 1, awayGoals: 0, finished: true, status: "OFFICIAL" },
+        { matchId: "M5", fase: "GRUPOS", grupo: "A", homeTeamId: "A2", awayTeamId: "A4", homeGoals: 0, awayGoals: 2, finished: true, status: "OFFICIAL" },
+        { matchId: "M6", fase: "GRUPOS", grupo: "A", homeTeamId: "A3", awayTeamId: "A4", homeGoals: 1, awayGoals: 1, finished: true, status: "OFFICIAL" }
+      ],
+      [
+        { teamId: "A1", grupo: "A", tieBreakerRank: 1 },
+        { teamId: "A2", grupo: "A", tieBreakerRank: 2 },
+        { teamId: "A3", grupo: "A", tieBreakerRank: 3 },
+        { teamId: "A4", grupo: "A", tieBreakerRank: 4 }
+      ]
+    );
+
+    const groupA = standings.standings.filter((row) => row.grupo === "A");
+    expect(groupA[0]).toMatchObject({ teamId: "A1", pts: 6, dg: 4 });
+    expect(groupA[1]).toMatchObject({ teamId: "A2", pts: 6, dg: 0 });
+  });
+});
+
 describe("scoreBonus", () => {
   const result = {
     campeon: "ESP",
@@ -183,6 +237,27 @@ describe("scoreBonus", () => {
     expect(score.maximoGoleadorOk).toBe(true);
     expect(score.seleccionMasGoleadoraOk).toBe(true);
     expect(score.equipoDecepcionOk).toBe(true);
+  });
+
+  it("scores tied bonus markets when the bet is one of the tied selections", () => {
+    const score = scoreBonus(
+      {
+        participantId: "P1",
+        seleccionMasGoleadora: "BRA",
+        equipoRevelacion: "MAR",
+        maximoGoleador: "Mbappe"
+      },
+      {
+        ...result,
+        seleccionMasGoleadora: ["ESP", "BRA"],
+        equipoRevelacion: ["JPN", "MAR"],
+        maximoGoleador: ["Kane", "Mbappe"]
+      }
+    );
+
+    expect(score.seleccionMasGoleadoraOk).toBe(true);
+    expect(score.equipoRevelacionOk).toBe(true);
+    expect(score.maximoGoleadorOk).toBe(true);
   });
 
   it("scores total goals within tolerance", () => {

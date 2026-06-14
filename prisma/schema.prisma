@@ -144,10 +144,119 @@ model Match {
   @@map("tbl_matches")
 }
 
+model TournamentGroupStanding {
+  id        String   @id @default(cuid())
+  grupo     String
+  teamId    String
+  pos       Int
+  pj        Int      @default(0)
+  pg        Int      @default(0)
+  pe        Int      @default(0)
+  pp        Int      @default(0)
+  gf        Int      @default(0)
+  gc        Int      @default(0)
+  dg        Int      @default(0)
+  pts       Int      @default(0)
+  status    String   @default("PENDING")
+  groupCode String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([grupo, teamId])
+  @@index([grupo, pos])
+  @@map("tbl_tournament_group_standings")
+}
+
+model TournamentThirdPlace {
+  id             String   @id @default(cuid())
+  grupo          String   @unique
+  teamId         String?
+  pts            Int      @default(0)
+  dg             Int      @default(0)
+  gf             Int      @default(0)
+  fairPlayPoints Int      @default(0)
+  fifaRank       Int?
+  rank3rd        Int?
+  qualified3rd   Boolean  @default(false)
+  thirdSlot      String?
+  qualifiedKey   String?
+  updatedAt      DateTime @updatedAt
+
+  @@index([rank3rd])
+  @@map("tbl_tournament_third_places")
+}
+
+model ThirdPlaceComboMapping {
+  id           String  @id @default(cuid())
+  option       Int     @unique
+  qualifiedKey String  @unique
+  opp1A        String?
+  opp1B        String?
+  opp1D        String?
+  opp1E        String?
+  opp1G        String?
+  opp1I        String?
+  opp1K        String?
+  opp1L        String?
+
+  @@map("tbl_third_place_combo_mapping")
+}
+
+model TournamentSlot {
+  id                String   @id @default(cuid())
+  slot              String   @unique
+  slotType          String
+  grupo             String?
+  pos               Int?
+  matchIdSource     String?
+  teamId            String?
+  sourceDescription String?
+  updatedAt         DateTime @updatedAt
+
+  @@index([slotType])
+  @@map("tbl_tournament_slots")
+}
+
+model TournamentTeamPerformance {
+  id           String   @id @default(cuid())
+  teamId       String   @unique
+  grupo        String?
+  groupPos     Int?
+  groupPts     Int      @default(0)
+  groupGf      Int      @default(0)
+  groupGc      Int      @default(0)
+  groupDg      Int      @default(0)
+  qualifiedR32 Boolean  @default(false)
+  reachedR32   Boolean  @default(false)
+  reachedR16   Boolean  @default(false)
+  reachedQf    Boolean  @default(false)
+  reachedSf    Boolean  @default(false)
+  reachedFinal Boolean  @default(false)
+  champion     Boolean  @default(false)
+  runnerUp     Boolean  @default(false)
+  thirdPlace   Boolean  @default(false)
+  reachedRound String   @default("GRUPOS")
+  roundValue   Int      @default(1)
+  tournamentGf Int      @default(0)
+  tournamentGc Int      @default(0)
+  tournamentDg Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@map("tbl_tournament_team_performance")
+}
+
+model TournamentBonusResult {
+  id             String   @id @default("default")
+  maximoGoleador String?
+  updatedBy      String?
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  @@map("tbl_tournament_bonus_results")
+}
+
 model BetMatch {
   id                  String  @id @default(cuid())
   sourceName          String? @map("Source.Name")
-  email               String? @map("Email")
   matchId             String  @map("Match_ID")
   predHomeTeamId      String? @map("Pred_Home_Team_ID")
   predAwayTeamId      String? @map("Pred_Away_Team_ID")
@@ -175,7 +284,6 @@ model BetMatch {
 model BetGroupPosition {
   id            String  @id @default(cuid())
   sourceName    String? @map("Source.Name")
-  email         String? @map("Email")
   grupo         String  @map("Grupo")
   predPos       Int     @map("Pred_Pos")
   predTeamId    String? @map("Pred_Team_ID")
@@ -191,27 +299,24 @@ model BetGroupPosition {
 }
 
 model BetBonus {
-  id                      String    @id @default(cuid())
-  participantId           String    @unique @map("Participant_ID")
-  alias                   String?   @map("Alias")
-  email                   String?   @map("Email")
-  timestamp               DateTime? @map("Timestamp")
-  campeon                 String?   @map("Campeon")
-  subcampeon              String?   @map("Subcampeon")
-  semifinalista1          String?   @map("Semifinalista_1")
-  semifinalista2          String?   @map("Semifinalista_2")
-  semifinalista3          String?   @map("Semifinalista_3")
-  semifinalista4          String?   @map("Semifinalista_4")
-  maximoGoleador          String?   @map("Maximo_Goleador")
-  seleccionMasGoleadora   String?   @map("Seleccion_Mas_Goleadora")
-  seleccionMasGoleada     String?   @map("Seleccion_Mas_Goleada")
-  seleccionMenosGoleadora String?   @map("Seleccion_Menos_Goleadora")
-  seleccionMenosGoleada   String?   @map("Seleccion_Menos_Goleada")
-  equipoRevelacion        String?   @map("Equipo_Revelacion")
-  equipoDecepcion         String?   @map("Equipo_Decepcion")
-  totalGolesTorneo        Int?      @map("Total_Goles_Torneo")
-  valid                   Boolean   @default(true) @map("Valid")
-  source                  String?   @map("Source")
+  id                      String  @id @default(cuid())
+  participantId           String  @unique @map("Participant_ID")
+  campeon                 String? @map("Campeon")
+  subcampeon              String? @map("Subcampeon")
+  semifinalista1          String? @map("Semifinalista_1")
+  semifinalista2          String? @map("Semifinalista_2")
+  semifinalista3          String? @map("Semifinalista_3")
+  semifinalista4          String? @map("Semifinalista_4")
+  maximoGoleador          String? @map("Maximo_Goleador")
+  seleccionMasGoleadora   String? @map("Seleccion_Mas_Goleadora")
+  seleccionMasGoleada     String? @map("Seleccion_Mas_Goleada")
+  seleccionMenosGoleadora String? @map("Seleccion_Menos_Goleadora")
+  seleccionMenosGoleada   String? @map("Seleccion_Menos_Goleada")
+  equipoRevelacion        String? @map("Equipo_Revelacion")
+  equipoDecepcion         String? @map("Equipo_Decepcion")
+  totalGolesTorneo        Int?    @map("Total_Goles_Torneo")
+  valid                   Boolean @default(true) @map("Valid")
+  source                  String? @map("Source")
 
   participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
 
@@ -249,7 +354,6 @@ model ScoringMatch {
 model ScoringGroup {
   id              String   @id @default(cuid())
   groupBetId      String?  @map("Group_Bet_ID")
-  email           String?  @map("Email")
   participantId   String   @map("Participant_ID")
   valid           Boolean  @default(true) @map("Valid")
   grupo           String   @map("Grupo")
@@ -272,23 +376,20 @@ model ScoringGroup {
 }
 
 model ScoringBonus {
-  id                        String    @id @default(cuid())
-  participantId             String    @unique @map("Participant_ID")
-  alias                     String?   @map("Alias")
-  email                     String?   @map("Email")
-  timestamp                 DateTime? @map("Timestamp")
-  campeonOk                 Boolean   @default(false) @map("Campeon_OK")
-  subcampeonOk              Boolean   @default(false) @map("Subcampeon_OK")
-  semifinalistasOk          Int       @default(0) @map("Semifinalistas_OK")
-  maximoGoleadorOk          Boolean   @default(false) @map("Maximo_Goleador_OK")
-  seleccionMasGoleadoraOk   Boolean   @default(false) @map("Seleccion_Mas_Goleadora_OK")
-  seleccionMasGoleadaOk     Boolean   @default(false) @map("Seleccion_Mas_Goleada_OK")
-  seleccionMenosGoleadoraOk Boolean   @default(false) @map("Seleccion_Menos_Goleadora_OK")
-  seleccionMenosGoleadaOk   Boolean   @default(false) @map("Seleccion_Menos_Goleada_OK")
-  equipoRevelacionOk        Boolean   @default(false) @map("Equipo_Revelacion_OK")
-  equipoDecepcionOk         Boolean   @default(false) @map("Equipo_Decepcion_OK")
-  totalGolesTorneoOk        Boolean   @default(false) @map("Total_Goles_Torneo_OK")
-  pointsTotal               Int       @default(0) @map("Points_Total")
+  id                        String  @id @default(cuid())
+  participantId             String  @unique @map("Participant_ID")
+  campeonOk                 Boolean @default(false) @map("Campeon_OK")
+  subcampeonOk              Boolean @default(false) @map("Subcampeon_OK")
+  semifinalistasOk          Int     @default(0) @map("Semifinalistas_OK")
+  maximoGoleadorOk          Boolean @default(false) @map("Maximo_Goleador_OK")
+  seleccionMasGoleadoraOk   Boolean @default(false) @map("Seleccion_Mas_Goleadora_OK")
+  seleccionMasGoleadaOk     Boolean @default(false) @map("Seleccion_Mas_Goleada_OK")
+  seleccionMenosGoleadoraOk Boolean @default(false) @map("Seleccion_Menos_Goleadora_OK")
+  seleccionMenosGoleadaOk   Boolean @default(false) @map("Seleccion_Menos_Goleada_OK")
+  equipoRevelacionOk        Boolean @default(false) @map("Equipo_Revelacion_OK")
+  equipoDecepcionOk         Boolean @default(false) @map("Equipo_Decepcion_OK")
+  totalGolesTorneoOk        Boolean @default(false) @map("Total_Goles_Torneo_OK")
+  pointsTotal               Int     @default(0) @map("Points_Total")
 
   participant Participant @relation(fields: [participantId], references: [participantId], onDelete: Cascade)
 
@@ -299,9 +400,6 @@ model GeneralRanking {
   id                    String   @id @default(cuid())
   pos                   Int      @map("Pos")
   participantId         String   @unique @map("Participant_ID")
-  alias                 String   @map("Alias")
-  departamento          String?  @map("Departamento")
-  rango                 String?  @map("Rango")
   pointsMatches         Int      @default(0) @map("Points_Matches")
   pointsGroups          Int      @default(0) @map("Points_Groups")
   pointsEliminatorias   Int      @default(0) @map("Points_Eliminatorias")

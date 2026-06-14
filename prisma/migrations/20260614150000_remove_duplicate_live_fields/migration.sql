@@ -1,0 +1,12 @@
+ALTER TABLE "tbl_bets_matches" DROP COLUMN IF EXISTS "Email";
+ALTER TABLE "tbl_bets_group_positions" DROP COLUMN IF EXISTS "Email";
+ALTER TABLE "tbl_bets_bonus" DROP COLUMN IF EXISTS "Alias";
+ALTER TABLE "tbl_bets_bonus" DROP COLUMN IF EXISTS "Email";
+ALTER TABLE "tbl_bets_bonus" DROP COLUMN IF EXISTS "Timestamp";
+ALTER TABLE "tbl_scoring_groups" DROP COLUMN IF EXISTS "Email";
+ALTER TABLE "tbl_scoring_bonus" DROP COLUMN IF EXISTS "Alias";
+ALTER TABLE "tbl_scoring_bonus" DROP COLUMN IF EXISTS "Email";
+ALTER TABLE "tbl_scoring_bonus" DROP COLUMN IF EXISTS "Timestamp";
+ALTER TABLE "tbl_clasificacion_general" DROP COLUMN IF EXISTS "Alias";
+ALTER TABLE "tbl_clasificacion_general" DROP COLUMN IF EXISTS "Departamento";
+ALTER TABLE "tbl_clasificacion_general" DROP COLUMN IF EXISTS "Rango";

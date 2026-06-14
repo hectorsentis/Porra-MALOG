@@ -96,13 +96,13 @@ export type BonusResultInput = {
   campeon?: string | null;
   subcampeon?: string | null;
   semifinalistas?: Array<string | null | undefined>;
-  maximoGoleador?: string | null;
-  seleccionMasGoleadora?: string | null;
-  seleccionMasGoleada?: string | null;
-  seleccionMenosGoleadora?: string | null;
-  seleccionMenosGoleada?: string | null;
-  equipoRevelacion?: string | null;
-  equipoDecepcion?: string | null;
+  maximoGoleador?: string | string[] | null;
+  seleccionMasGoleadora?: string | string[] | null;
+  seleccionMasGoleada?: string | string[] | null;
+  seleccionMenosGoleadora?: string | string[] | null;
+  seleccionMenosGoleada?: string | string[] | null;
+  equipoRevelacion?: string | string[] | null;
+  equipoDecepcion?: string | string[] | null;
   totalGolesTorneo?: number | null;
 };
 

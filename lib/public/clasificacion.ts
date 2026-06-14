@@ -51,7 +51,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
   const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, matchEvents] = await Promise.all([
     prisma.generalRanking.findMany({
       orderBy: { pos: "asc" },
-      include: { participant: { select: { slug: true } } }
+      include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } }
     }),
     prisma.scoringMatch.groupBy({ by: ["participantId"], _count: { _all: true } }),
     prisma.scoringMatch.findMany({

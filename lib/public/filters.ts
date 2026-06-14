@@ -74,8 +74,8 @@ export async function getPublicFilterOptions(): Promise<PublicFilterOptions> {
   noStore();
   const [rankings, matches, teams] = await Promise.all([
     prisma.generalRanking.findMany({
-      select: { alias: true, departamento: true, rango: true },
-      orderBy: { alias: "asc" }
+      select: { participant: { select: { alias: true, departamento: true, rango: true } } },
+      orderBy: { pos: "asc" }
     }),
     prisma.match.findMany({
       select: { fase: true, jornadaId: true, grupo: true },
@@ -88,9 +88,9 @@ export async function getPublicFilterOptions(): Promise<PublicFilterOptions> {
   ]);
 
   return {
-    alias: clean(rankings.map((row) => row.alias)),
-    departamento: clean(rankings.map((row) => row.departamento)),
-    rango: clean(rankings.map((row) => row.rango)),
+    alias: clean(rankings.map((row) => row.participant.alias)),
+    departamento: clean(rankings.map((row) => row.participant.departamento)),
+    rango: clean(rankings.map((row) => row.participant.rango)),
     fase: clean(matches.map((row) => row.fase)),
     jornada: clean(matches.map((row) => row.jornadaId)),
     grupo: clean(matches.map((row) => row.grupo)),

@@ -675,7 +675,6 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       const betMatches = parsed.betMatches
         .map((row) => ({
           sourceName: text(row["Source.Name"]),
-          email: text(row.Email),
           matchId: text(row.Match_ID) ?? "",
           predHomeTeamId: text(row.Pred_Home_Team_ID),
           predAwayTeamId: text(row.Pred_Away_Team_ID),
@@ -692,7 +691,6 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       const groupBets = parsed.groupBets
         .map((row) => ({
           sourceName: text(row["Source.Name"]),
-          email: text(row.Email),
           grupo: text(row.Grupo) ?? "",
           predPos: number(row.Pred_Pos) ?? 0,
           predTeamId: text(row.Pred_Team_ID),
@@ -704,9 +702,6 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       const bonusBets = parsed.bonusBets
         .map((row) => ({
           participantId: text(row.Participant_ID) ?? "",
-          alias: text(row.Alias),
-          email: text(row.Email),
-          timestamp: date(row.Timestamp),
           campeon: text(row.Campeon),
           subcampeon: text(row.Subcampeon),
           semifinalista1: text(row.Semifinalista_1),
@@ -743,7 +738,29 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
         });
       }
       if (parsed.classifications.length > 0) {
-        await tx.generalRanking.createMany({ data: parsed.classifications, skipDuplicates: true });
+        const rankingRows = parsed.classifications.map((row) => ({
+          pos: row.pos,
+          participantId: row.participantId,
+          pointsMatches: row.pointsMatches,
+          pointsGroups: row.pointsGroups,
+          pointsEliminatorias: row.pointsEliminatorias,
+          pointsBonus: row.pointsBonus,
+          pointsTotal: row.pointsTotal,
+          exactScores: row.exactScores,
+          correctDiff: row.correctDiff,
+          correctSigns: row.correctSigns,
+          correctGroupQualified: row.correctGroupQualified,
+          correctGroupPositions: row.correctGroupPositions,
+          correctCruces: row.correctCruces,
+          pointsTotalFecha: row.pointsTotalFecha,
+          posFecha: row.posFecha,
+          deltaPos: row.deltaPos,
+          deltaPoints: row.deltaPoints
+        }));
+        await tx.generalRanking.createMany({
+          data: rankingRows as unknown as NonNullable<Parameters<typeof tx.generalRanking.createMany>[0]>["data"],
+          skipDuplicates: true
+        });
         await tx.rankingSnapshot.updateMany({ where: { isLatest: true }, data: { isLatest: false } });
         const snapshot = await tx.rankingSnapshot.create({
           data: {
