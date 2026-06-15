@@ -99,6 +99,7 @@ export async function syncApiFootballMatchIds() {
       homeTeam: true,
       awayTeam: true,
       apiFootballId: true,
+      status: true,
       apiFootballSync: { select: { apiMatchId: true } }
     },
     orderBy: [{ matchNo: "asc" }]
@@ -109,6 +110,7 @@ export async function syncApiFootballMatchIds() {
   // Fetch their kickoff date(s) by date so they can be matched below.
   const pendingDateKeys = new Set<string>();
   for (const match of matches) {
+    if (match.status === "OFFICIAL") continue;
     if (match.apiFootballId != null) continue;
     if (!match.kickoffTime || match.kickoffTime > now) continue;
     const key = madridDateKey(match.kickoffTime);
@@ -139,10 +141,13 @@ export async function syncApiFootballMatchIds() {
       });
       continue;
     }
+    const realKickoff = fixture.date ? new Date(fixture.date) : null;
+    const kickoffTime =
+      realKickoff && !Number.isNaN(realKickoff.getTime()) ? realKickoff : match.kickoffTime;
     await prisma.$transaction(async (tx) => {
       await tx.match.update({
         where: { matchId: match.matchId },
-        data: { apiFootballId: fixture.apiMatchId }
+        data: { apiFootballId: fixture.apiMatchId, kickoffTime }
       });
       await tx.apiFootballSync.upsert({
         where: { matchId: match.matchId },
