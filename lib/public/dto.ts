@@ -29,6 +29,15 @@ export type PublicDashboardData = {
     homeTeam: string;
     awayTeam: string;
   } | null;
+  liveMatch: {
+    matchId: string;
+    fecha: string | null;
+    hora: string | null;
+    homeTeam: string;
+    awayTeam: string;
+    resultText: string | null;
+  } | null;
+  liveMatchesCount: number;
   ranking: PublicClassificationRow[];
   departmentAverages: Array<{ departamento: string; averagePoints: number; participants: number }>;
   composition: Array<{ name: string; value: number }>;

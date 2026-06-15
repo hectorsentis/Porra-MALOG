@@ -14,6 +14,8 @@ const emptyDashboard: PublicDashboardData = {
   computedMatches: 0,
   lastUpdatedAt: null,
   nextMatch: null,
+  liveMatch: null,
+  liveMatchesCount: 0,
   ranking: [],
   departmentAverages: [],
   composition: [
@@ -45,7 +47,7 @@ function madridStartOfToday() {
 export async function getPublicDashboard(filters: PublicFilters = {}): Promise<PublicDashboardData> {
   noStore();
   try {
-    const [classification, participantsCount, computedMatches, nextMatch] = await Promise.all([
+    const [classification, participantsCount, computedMatches, nextMatch, liveMatches] = await Promise.all([
       prisma.generalRanking.findMany({
         orderBy: { pos: "asc" },
         include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } },
@@ -69,6 +71,26 @@ export async function getPublicDashboard(filters: PublicFilters = {}): Promise<P
           awayTeam: true,
           homeSlot: true,
           awaySlot: true
+        }
+      }),
+      prisma.match.findMany({
+        where: { status: MatchStatus.DRAFT },
+        orderBy: [{ kickoffTime: "asc" }, { fecha: "asc" }, { matchNo: "asc" }],
+        take: 3,
+        select: {
+          matchId: true,
+          fecha: true,
+          kickoffTime: true,
+          hora: true,
+          homeTeamId: true,
+          awayTeamId: true,
+          homeTeam: true,
+          awayTeam: true,
+          homeSlot: true,
+          awaySlot: true,
+          homeGoals: true,
+          awayGoals: true,
+          resultText: true
         }
       })
     ]);
@@ -106,6 +128,17 @@ export async function getPublicDashboard(filters: PublicFilters = {}): Promise<P
             awayTeam: formatCountry(nextMatch.awayTeamId, nextMatch.awayTeam ?? nextMatch.awaySlot ?? "Visitante")
           }
         : null,
+      liveMatch: liveMatches[0]
+        ? {
+            matchId: liveMatches[0].matchId,
+            fecha: (liveMatches[0].kickoffTime ?? liveMatches[0].fecha)?.toISOString() ?? null,
+            hora: liveMatches[0].hora,
+            homeTeam: formatCountry(liveMatches[0].homeTeamId, liveMatches[0].homeTeam ?? liveMatches[0].homeSlot ?? "Local"),
+            awayTeam: formatCountry(liveMatches[0].awayTeamId, liveMatches[0].awayTeam ?? liveMatches[0].awaySlot ?? "Visitante"),
+            resultText: liveMatches[0].resultText ?? (liveMatches[0].homeGoals != null && liveMatches[0].awayGoals != null ? `${liveMatches[0].homeGoals}-${liveMatches[0].awayGoals}` : null)
+          }
+        : null,
+      liveMatchesCount: liveMatches.length,
       ranking,
       departmentAverages: [...departments.entries()].map(([departamento, value]) => ({
         departamento,

@@ -55,6 +55,16 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
 
   const todayKeyEst = getEstDayKey(startedAt);
   const currentPhaseGroup = phaseGroupOf(eventMatch?.fase, eventMatch?.jornadaId);
+  const includeDraftMatches = trigger === "live-update";
+
+  const isScorableMatch = (match: {
+    status: string;
+    finished: boolean;
+    homeGoals: number | null;
+    awayGoals: number | null;
+  }) =>
+    isOfficialMatchForScoring(match) ||
+    (includeDraftMatches && match.status === "DRAFT" && match.homeGoals != null && match.awayGoals != null);
 
   try {
     await recalculateTournamentEngine(prisma);
@@ -87,7 +97,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
     const scores = bets
       .map((bet) => {
         const match = matchById.get(bet.matchId);
-        if (!match || !isOfficialMatchForScoring(match)) return null;
+        if (!match || !isScorableMatch(match)) return null;
         return scoreMatch(
           {
             betId: bet.betId,
@@ -108,7 +118,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
             homeGoals: match.homeGoals,
             awayGoals: match.awayGoals,
             qualifiedTeamId: match.overrideQualifiedTeamId ?? match.qualifiedTeamId,
-            finished: match.finished
+            finished: match.finished || (includeDraftMatches && match.status === "DRAFT")
           },
           rules
         );

@@ -7,6 +7,22 @@ import type { ClassificationOverviewRow } from "@/lib/public/clasificacion";
 import { Badge } from "@/components/ui/badge";
 import { DeltaBadge } from "@/components/clasificacion/DeltaBadge";
 
+function PointsCell({ value, provisional }: { value: number; provisional: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span>{value}</span>
+      {provisional > 0 ? (
+        <Badge
+          className="border-red-300 bg-red-50 text-red-700"
+          title="Puntos provisionales del partido en directo: se confirmarán cuando finalice."
+        >
+          +{provisional} 🔴
+        </Badge>
+      ) : null}
+    </span>
+  );
+}
+
 function LastMatchBadge({ lastMatch }: { lastMatch: ClassificationOverviewRow["lastMatch"] }) {
   if (!lastMatch) return <span className="text-slate-400">—</span>;
   const className = lastMatch.tipo === "Exacto" ? "text-air-up" : lastMatch.tipo === "Ganador" ? "text-air-light" : "text-air-down";
@@ -49,8 +65,16 @@ export function ClassificationTable({
         cell: ({ row }) => <Link className="font-semibold text-primary" href={`/participantes/${row.original.slug}`}>{row.original.alias}</Link>
       },
       { accessorKey: "departamento", header: "Dept" },
-      { accessorKey: "pointsTotal", header: "Pts totales" },
-      { accessorKey: "pointsToday", header: "Pts último día" },
+      {
+        accessorKey: "pointsTotal",
+        header: "Pts totales",
+        cell: ({ row }) => <PointsCell value={row.original.pointsTotal} provisional={row.original.provisionalPoints} />
+      },
+      {
+        accessorKey: "pointsToday",
+        header: "Pts último día",
+        cell: ({ row }) => <PointsCell value={row.original.pointsToday} provisional={row.original.provisionalPointsToday} />
+      },
       { accessorKey: "exactScores", header: "Exactos" },
       { accessorKey: "ganadores", header: "Ganadores" },
       { accessorKey: "fallos", header: "Fallos" },

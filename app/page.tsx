@@ -8,6 +8,9 @@ import { getPublicDashboard } from "@/lib/public/queries";
 import { parsePublicFilters } from "@/lib/public/filters";
 import { PublicFiltersForm } from "@/components/PublicFiltersForm";
 import { FilterChips } from "@/components/FilterChips";
+import { AutoRefresh } from "@/components/live/AutoRefresh";
+import { LiveBadge } from "@/components/live/LiveBadge";
+import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
 
 export const dynamic = "force-dynamic";
 
@@ -62,11 +65,27 @@ export default async function HomePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const filters = parsePublicFilters(await searchParams);
+  await ensureLiveMatchesActive();
   const data = await getPublicDashboard(filters);
 
   return (
     <PublicShell>
+      <AutoRefresh enabled={data.liveMatchesCount > 0} />
       <PageTitle title="PORRA MUNDIAL 2026 MALOG" subtitle="Clasificacion, apuestas y evolucion de la porra." />
+      {data.liveMatch ? (
+        <Card className="mb-4 border-red-300 bg-white">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <div className="mb-1 flex items-center gap-2"><LiveBadge /><span className="text-xs font-semibold uppercase text-slate-800">Partido en juego</span></div>
+              <p className="text-lg font-bold text-slate-950"><span className="text-slate-950"><CountryLabel value={data.liveMatch.homeTeam} /></span> <span className="text-slate-700">vs</span> <span className="text-slate-950"><CountryLabel value={data.liveMatch.awayTeam} /></span></p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase text-slate-700">Marcador provisional</p>
+              <p className="text-3xl font-bold text-slate-950">{data.liveMatch.resultText ?? "-"}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
       <PublicFiltersForm filters={filters} compact />
       <FilterChips filters={filters} basePath="/" />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -76,6 +95,7 @@ export default async function HomePage({
         <Kpi label="Participantes" value={data.participantsCount} />
         <Kpi label="Puntos repartidos" value={data.distributedPoints} />
         <Kpi label="Partidos computados" value={data.computedMatches} />
+        <Kpi label="LIVE" value={data.liveMatchesCount > 0 ? `${data.liveMatchesCount} en juego` : "Sin directos"} />
         <Kpi label="Ultima actualizacion" value={data.lastUpdatedAt ? new Date(data.lastUpdatedAt).toLocaleString("es-ES") : "Pendiente"} />
         <Kpi label="Proximo partido" value={<NextMatchValue match={data.nextMatch} />} />
       </section>

@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import { getMatchMadridDayKey } from "@/lib/utils/timezone";
+import { API_FOOTBALL_STATUS_LABELS } from "@/lib/api-football/constants";
 import { getMatchEventSnapshots } from "./snapshots";
 import { toPublicClassificationRow } from "./mappers";
 import type { PublicClassificationRow } from "./dto";
@@ -32,8 +33,18 @@ export type ClassificationOverviewRow = PublicClassificationRow & {
   fallos: number;
   pctAcierto: number;
   pointsToday: number;
+  provisionalPoints: number;
+  provisionalPointsToday: number;
   lastMatch: LastMatchInfo | null;
   racha: number;
+};
+
+export type LiveMatchInfo = {
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  resultText: string | null;
+  statusLabel: string | null;
 };
 
 export type ClassificationOverview = {
@@ -41,6 +52,8 @@ export type ClassificationOverview = {
   currentPhaseGroup: string | null;
   dayBaselineLabel: string;
   matchesToday: number;
+  draftMatchesCount: number;
+  liveMatch: LiveMatchInfo | null;
   topDayGainer: { alias: string; deltaPosDay: number } | null;
   topPhaseGainer: { alias: string; deltaPosPhase: number } | null;
 };
@@ -48,7 +61,7 @@ export type ClassificationOverview = {
 export async function getClassificationOverview(filters: PublicFilters = {}): Promise<ClassificationOverview> {
   noStore();
 
-  const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, matchEvents] = await Promise.all([
+  const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, draftMatchesCount, matchEvents, liveMatchRow] = await Promise.all([
     prisma.generalRanking.findMany({
       orderBy: { pos: "asc" },
       include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } }
@@ -63,7 +76,7 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
         signOk: true,
         betId: true,
         match: {
-          select: { fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true }
+          select: { fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true, status: true }
         }
       },
       orderBy: [{ match: { fecha: "desc" } }, { match: { matchNo: "desc" } }]
@@ -77,8 +90,33 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
       where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
       select: { fecha: true }
     }),
-    getMatchEventSnapshots()
+    prisma.match.count({ where: { status: "DRAFT" } }),
+    getMatchEventSnapshots(),
+    prisma.match.findFirst({
+      where: { status: "DRAFT" },
+      select: {
+        matchId: true,
+        homeTeam: true,
+        awayTeam: true,
+        homeTeamId: true,
+        awayTeamId: true,
+        resultText: true,
+        apiFootballSync: { select: { lastStatus: true } }
+      }
+    })
   ]);
+
+  const liveMatch: LiveMatchInfo | null = liveMatchRow
+    ? {
+        matchId: liveMatchRow.matchId,
+        homeTeam: formatCountry(liveMatchRow.homeTeamId, liveMatchRow.homeTeam ?? liveMatchRow.homeTeamId ?? ""),
+        awayTeam: formatCountry(liveMatchRow.awayTeamId, liveMatchRow.awayTeam ?? liveMatchRow.awayTeamId ?? ""),
+        resultText: liveMatchRow.resultText,
+        statusLabel: liveMatchRow.apiFootballSync?.lastStatus
+          ? API_FOOTBALL_STATUS_LABELS[liveMatchRow.apiFootballSync.lastStatus] ?? liveMatchRow.apiFootballSync.lastStatus
+          : null
+      }
+    : null;
 
   const currentDayKey = matchEvents[0]?.dayKey ?? null;
   const previousDaySnapshot = matchEvents.find((event) => currentDayKey != null && event.dayKey !== currentDayKey) ?? null;
@@ -108,9 +146,19 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
   }
 
   const pointsTodayByParticipant = new Map<string, number>();
+  const provisionalPointsByParticipant = new Map<string, number>();
+  const provisionalPointsTodayByParticipant = new Map<string, number>();
   for (const row of scoringRows) {
-    if (!row.match.fecha || currentDayKey == null || getMatchMadridDayKey(row.match.fecha) !== currentDayKey) continue;
-    pointsTodayByParticipant.set(row.participantId, (pointsTodayByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
+    const isToday = Boolean(row.match.fecha && currentDayKey != null && getMatchMadridDayKey(row.match.fecha) === currentDayKey);
+    if (isToday) {
+      pointsTodayByParticipant.set(row.participantId, (pointsTodayByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
+    }
+    if (row.match.status === "DRAFT") {
+      provisionalPointsByParticipant.set(row.participantId, (provisionalPointsByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
+      if (isToday) {
+        provisionalPointsTodayByParticipant.set(row.participantId, (provisionalPointsTodayByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
+      }
+    }
   }
 
   const lastBetIds = [...scoringByParticipant.values()]
@@ -168,6 +216,8 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
         fallos,
         pctAcierto,
         pointsToday: pointsTodayByParticipant.get(row.participantId) ?? 0,
+        provisionalPoints: provisionalPointsByParticipant.get(row.participantId) ?? 0,
+        provisionalPointsToday: provisionalPointsTodayByParticipant.get(row.participantId) ?? 0,
         lastMatch,
         racha
       };
@@ -195,6 +245,8 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
     currentPhaseGroup: phaseSnapshot?.phaseGroup ?? null,
     dayBaselineLabel,
     matchesToday,
+    draftMatchesCount,
+    liveMatch,
     topDayGainer,
     topPhaseGainer
   };

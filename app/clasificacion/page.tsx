@@ -3,6 +3,7 @@ import { ClassificationTable } from "@/components/clasificacion/ClassificationTa
 import { PageTitle } from "@/components/PageTitle";
 import { PublicShell } from "@/components/shell/PublicShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { getClassificationOverview } from "@/lib/public/clasificacion";
 import { parsePublicFilters, type PublicFilters } from "@/lib/public/filters";
 import { PublicFiltersForm } from "@/components/PublicFiltersForm";
@@ -10,6 +11,8 @@ import { FilterChips } from "@/components/FilterChips";
 import { getTemporalClassification } from "@/lib/public/temporal";
 import { getHistoricalRanking, type HistoricalRanking } from "@/lib/public/historico";
 import { DeltaBadge } from "@/components/clasificacion/DeltaBadge";
+import { AutoRefresh } from "@/components/live/AutoRefresh";
+import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
 
 export const dynamic = "force-dynamic";
 
@@ -182,6 +185,7 @@ export default async function ClasificacionPage({
 }) {
   const params = await searchParams;
   const filters = parsePublicFilters(params);
+  await ensureLiveMatchesActive();
   const activeTab = filters.tab && ["general", "diaria", "semanal", "historico"].includes(filters.tab) ? filters.tab : "general";
   const deltaParam = Array.isArray(params.delta) ? params.delta[0] : params.delta;
   const delta: DeltaMode = deltaParam === "phase" || deltaParam === "day" ? deltaParam : "both";
@@ -191,7 +195,19 @@ export default async function ClasificacionPage({
   const historico = activeTab === "historico" ? await getHistoricalRanking(filters, snapshotParam) : null;
   return (
     <PublicShell>
+      <AutoRefresh enabled={(overview?.draftMatchesCount ?? 0) > 0} />
       <PageTitle title="Clasificacion" subtitle="Ranking actual, clasificacion diaria y clasificacion de una semana movil de 7 dias." />
+      {overview?.liveMatch ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <p className="font-semibold">
+            🔴 En directo: {overview.liveMatch.homeTeam} {overview.liveMatch.resultText ?? "-"} {overview.liveMatch.awayTeam}
+            {overview.liveMatch.statusLabel ? ` (${overview.liveMatch.statusLabel})` : ""}
+          </p>
+          <p className="mt-1">
+            Los puntos marcados con <Badge className="border-red-300 bg-red-50 text-red-700">+N 🔴</Badge> son provisionales y se confirmarán cuando finalice el partido.
+          </p>
+        </div>
+      ) : null}
       <nav className="mb-4 flex gap-2 overflow-x-auto">
         {tabs.map(([key, label]) => (
           <Link key={key} href={tabHref(key, filters)} className={`rounded-md border px-3 py-2 text-sm font-semibold ${activeTab === key ? "border-primary bg-primary text-[#FFFFFF]" : "border-slate-200 bg-white text-slate-700"}`}>{label}</Link>

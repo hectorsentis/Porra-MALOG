@@ -38,7 +38,9 @@ const teamSchema = z.object({
 const matchSchema = z.object({
   matchId: z.string().min(1),
   matchNo: z.number().int().nullable(),
+  apiFootballId: z.number().int().nullable(),
   fecha: z.date().nullable(),
+  kickoffTime: z.date().nullable(),
   hora: z.string().nullable(),
   jornadaId: z.string().nullable(),
   fase: z.string().nullable(),
@@ -65,7 +67,8 @@ const matchSchema = z.object({
   needsPens: z.boolean(),
   statusCheck: z.string().nullable(),
   bettingDeadline: z.date().nullable(),
-  notas: z.string().nullable()
+  notas: z.string().nullable(),
+  apiFootballMatchId: z.number().int().nullable()
 });
 
 
@@ -420,7 +423,9 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
       return {
         matchId: text(row.Match_ID) ?? "",
         matchNo: number(row.Match_No),
+        apiFootballId: number(row.ApiFootball_Match_ID) ?? number(row.API_FOOTBALL_MATCH_ID) ?? number(row.apiMatchId),
         fecha: date(row.Fecha),
+        kickoffTime: date(row.Kickoff_Time) ?? date(row.KickoffTime) ?? date(row.Fecha),
         hora: text(row.Hora),
         jornadaId: text(row.Jornada_ID),
         fase: text(row.Fase),
@@ -447,7 +452,8 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
         needsPens: bool(row.Needs_Pens),
         statusCheck: text(row.Status_Check),
         bettingDeadline: date(row.Deadline_Apuestas),
-        notas: text(row.Notas)
+        notas: text(row.Notas),
+        apiFootballMatchId: number(row.ApiFootball_Match_ID) ?? number(row.API_FOOTBALL_MATCH_ID) ?? number(row.apiMatchId)
       };
     })
     .map((row, index) => {
@@ -646,7 +652,9 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
       for (const match of parsed.matches) {
         const matchData = {
           matchNo: match.matchNo,
+          apiFootballId: match.apiFootballId,
           fecha: match.fecha,
+          kickoffTime: match.kickoffTime,
           hora: match.hora,
           jornadaId: match.jornadaId,
           fase: match.fase,
@@ -667,8 +675,29 @@ export async function importExcelWorkbook(input: Buffer, filename: string, dryRu
         await tx.match.upsert({
           where: { matchId: match.matchId },
           update: matchData,
-          create: match
+          create: {
+            ...matchData,
+            matchId: match.matchId,
+            homeGoals: match.homeGoals,
+            awayGoals: match.awayGoals,
+            homePens: match.homePens,
+            awayPens: match.awayPens,
+            finished: match.finished,
+            resultText: match.resultText,
+            realSign: match.realSign,
+            goalDiff: match.goalDiff,
+            winnerTeamId: match.winnerTeamId,
+            qualifiedTeamId: match.qualifiedTeamId,
+            overrideQualifiedTeamId: match.overrideQualifiedTeamId
+          }
         });
+        if (match.apiFootballMatchId != null) {
+          await tx.apiFootballSync.upsert({
+            where: { matchId: match.matchId },
+            update: { apiMatchId: match.apiFootballMatchId, isPollingActive: false, lastError: null },
+            create: { matchId: match.matchId, apiMatchId: match.apiFootballMatchId, isPollingActive: false }
+          });
+        }
       }
       const participantIds = new Set(parsed.participants.map((participant) => participant.participantId));
       const matchIds = new Set(parsed.matches.map((match) => match.matchId));

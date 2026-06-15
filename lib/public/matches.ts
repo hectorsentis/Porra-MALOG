@@ -42,7 +42,7 @@ function isHiddenR32(match: { fase: string | null; homeTeamId?: string | null; a
 
 function statusLabel(status: string) {
   if (status === "OFFICIAL") return "Oficial";
-  if (status === "DRAFT") return "Borrador";
+  if (status === "DRAFT") return "En vivo";
   if (status === "VOID") return "Anulado";
   return "Pendiente";
 }
@@ -183,8 +183,8 @@ export async function getPublicMatches(filters: PublicFilters = {}) {
         awayTeam: formatCountry(match.awayTeamId, match.awayTeam ?? match.awaySlot ?? "Visitante"),
         status: match.status,
         statusLabel: statusLabel(match.status),
-        resultText: match.status === "OFFICIAL" ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
-        qualifiedTeamId: match.status === "OFFICIAL" ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null,
+        resultText: match.status === "OFFICIAL" || match.status === "DRAFT" ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
+        qualifiedTeamId: match.status === "OFFICIAL" || match.status === "DRAFT" ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null,
         pointsDistributed,
         exactScores,
         prediction,
@@ -230,8 +230,8 @@ export async function getPublicMatchDetail(matchId: string) {
       awayTeam: formatCountry(match.awayTeamId, match.awayTeam ?? match.awaySlot ?? "Visitante"),
       status: match.status,
       statusLabel: statusLabel(match.status),
-      resultText: match.status === "OFFICIAL" ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
-      qualifiedTeamId: match.status === "OFFICIAL" ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null
+      resultText: match.status === "OFFICIAL" || match.status === "DRAFT" ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
+      qualifiedTeamId: match.status === "OFFICIAL" || match.status === "DRAFT" ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null
     },
     prediction,
     pedometer,

@@ -8,6 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PhaseBadge } from "@/components/ui/phase-badge";
 import { parsePublicFilters } from "@/lib/public/filters";
 import { getMatchFilterOptions, getPublicMatches } from "@/lib/public/matches";
+import { AutoRefresh } from "@/components/live/AutoRefresh";
+import { LiveBadge } from "@/components/live/LiveBadge";
+import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
 
 export const dynamic = "force-dynamic";
 
@@ -54,17 +57,20 @@ function PedometerSummary({ pedometer }: { pedometer: Pedometer }) {
 }
 function statusClass(status: string) {
   if (status === "OFFICIAL") return "border-air-up text-air-up";
-  if (status === "DRAFT") return "border-air-gold text-air-gold";
+  if (status === "DRAFT") return "border-red-300 bg-red-50 text-red-700";
   if (status === "VOID") return "border-air-down text-air-down";
   return "text-slate-600";
 }
 
 export default async function PartidosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const filters = parsePublicFilters(await searchParams);
+  await ensureLiveMatchesActive();
   const [matches, options] = await Promise.all([getPublicMatches(filters), getMatchFilterOptions()]);
+  const hasLive = matches.some((match) => match.status === "DRAFT");
 
   return (
     <PublicShell>
+      <AutoRefresh enabled={hasLive} />
       <PageTitle title="Partidos" subtitle={"Calendario del Mundial, marcadores oficiales y term\u00f3metro de la grada de la porra."} />
       <form className="mb-4 grid gap-2 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-7">
         {matchFilterFields.map((field) => (
@@ -95,13 +101,14 @@ export default async function PartidosPage({ searchParams }: { searchParams: Pro
               <div>
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <Badge className={statusClass(match.status)}>{match.statusLabel}</Badge>
+                  {match.status === "DRAFT" ? <LiveBadge /> : null}
                   <PhaseBadge fase={match.fase} />
                   <span className="text-xs font-semibold uppercase text-slate-500">{match.jornadaId ?? "Jornada"}</span>
                 </div>
                 <Link href={`/partidos/${match.matchId}`} className="text-lg font-bold text-primary"><CountryLabel value={match.homeTeam} /> vs <CountryLabel value={match.awayTeam} /></Link>
                 <p className="text-sm text-slate-600">{match.fecha ? new Date(match.fecha).toLocaleDateString("es-ES") : "Fecha por confirmar"} {match.hora ?? ""}</p>
               </div>
-              <div><p className="text-xs uppercase text-slate-500">Marcador</p><p className="text-2xl font-bold">{match.resultText ?? "-"}</p></div>
+              <div><p className="text-xs uppercase text-slate-500">Marcador</p><p className={match.status === "DRAFT" ? "text-2xl font-bold text-red-700" : "text-2xl font-bold"}>{match.resultText ?? "-"}</p></div>
               <div><p className="text-xs uppercase text-slate-500">Puntos de la porra</p><p className="text-2xl font-bold">{match.pointsDistributed}</p></div>
               <div><p className="text-xs uppercase text-slate-500">Exactos</p><p className="text-2xl font-bold">{match.exactScores}</p></div>
               <div><p className="text-xs uppercase text-slate-500">Marcador favorito</p><p className="text-lg font-bold">{match.prediction.mostPredictedResult}</p><p className="text-xs text-slate-500">{match.prediction.mostPredictedPct}%</p></div>
@@ -114,4 +121,3 @@ export default async function PartidosPage({ searchParams }: { searchParams: Pro
     </PublicShell>
   );
 }
-

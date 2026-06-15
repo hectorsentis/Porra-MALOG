@@ -97,7 +97,9 @@ model Team {
 model Match {
   matchId                 String      @id @map("Match_ID")
   matchNo                 Int?        @map("Match_No")
+  apiFootballId           Int?        @unique @map("api_football_id")
   fecha                   DateTime?   @map("Fecha")
+  kickoffTime             DateTime?   @map("Kickoff_Time")
   hora                    String?     @map("Hora")
   jornadaId               String?     @map("Jornada_ID")
   fase                    String?     @map("Fase")
@@ -140,8 +142,44 @@ model Match {
   resultEvents      MatchResultEvent[]
   recalculationRuns RecalculationRun[]
   rankingSnapshots  RankingSnapshot[]
+  apiFootballSync   ApiFootballSync?
 
   @@map("tbl_matches")
+}
+
+model ApiFootballSync {
+  id              String    @id @default(cuid())
+  matchId         String    @unique
+  apiMatchId      Int
+  competition     String    @default("FIFA World Cup 2026")
+  lastPolledAt    DateTime?
+  pollIntervalSec Int       @default(300)
+  isPollingActive Boolean   @default(false)
+  lastStatus      String?
+  lastHomeGoals   Int?
+  lastAwayGoals   Int?
+  errorCount      Int       @default(0)
+  lastError       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  match Match @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
+
+  @@index([isPollingActive])
+  @@map("tbl_api_football_sync")
+}
+
+model ApiCallLog {
+  id         String   @id @default(cuid())
+  dayKey     String
+  matchId    String?
+  endpoint   String
+  statusCode Int?
+  createdAt  DateTime @default(now())
+
+  @@index([dayKey])
+  @@index([createdAt])
+  @@map("tbl_api_call_log")
 }
 
 model TournamentGroupStanding {

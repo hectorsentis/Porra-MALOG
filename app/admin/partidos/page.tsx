@@ -1,4 +1,4 @@
-import { saveMatchAction } from "@/app/admin/actions";
+import { linkKnockoutApiFootballAction, saveMatchAction } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +7,9 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPartidosPage() {
+export default async function AdminPartidosPage({ searchParams }: { searchParams: Promise<{ linked?: string; skipped?: string }> }) {
   await requireAdmin();
+  const params = await searchParams;
   const [matches, teams] = await Promise.all([
     prisma.match.findMany({
       orderBy: [{ fecha: "asc" }, { matchNo: "asc" }],
@@ -36,6 +37,11 @@ export default async function AdminPartidosPage() {
         <Card>
           <CardHeader><CardTitle>Crear o editar partido</CardTitle></CardHeader>
           <CardContent>
+            {params.linked ? (
+              <p className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-800">
+                Cruces vinculados: {params.linked}. Sin coincidencia: {params.skipped ?? 0}.
+              </p>
+            ) : null}
             <form action={saveMatchAction} className="grid gap-3 md:grid-cols-4">
               <label className="grid gap-1 text-sm">ID partido<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="matchId" required /></label>
               <label className="grid gap-1 text-sm">Numero<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="matchNo" type="number" /></label>
@@ -55,6 +61,9 @@ export default async function AdminPartidosPage() {
               <label className="grid gap-1 text-sm">Nombre visitante<input className="h-10 rounded-md border border-slate-200 px-3 text-sm" name="awayTeam" /></label>
               <label className="flex h-10 items-center gap-2 text-sm"><input name="needsPens" type="checkbox" /> Puede requerir penaltis</label>
               <Button>Guardar partido</Button>
+            </form>
+            <form action={linkKnockoutApiFootballAction} className="mt-3">
+              <Button variant="secondary">Vincular cruces de eliminatorias con API-Football</Button>
             </form>
           </CardContent>
         </Card>

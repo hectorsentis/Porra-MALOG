@@ -1,0 +1,72 @@
+import { prisma } from "@/lib/prisma";
+import { recalculateAll } from "@/lib/game/recalculateAll";
+import { canMakeApiFootballCall, getApiFootballBudget, recordApiFootballCall } from "./budget";
+import { fetchApiFootballFixturesByIds } from "./client";
+import { applyFixtureResult } from "./applyFixtureResult";
+import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
+
+export async function runApiFootballLivePoll(now = new Date()) {
+  const activation = await ensureLiveMatchesActive(now);
+  const active = await prisma.apiFootballSync.findMany({
+    where: { isPollingActive: true },
+    include: {
+      match: {
+        select: {
+          matchId: true,
+          matchNo: true,
+          fase: true,
+          jornadaId: true,
+          homeTeamId: true,
+          awayTeamId: true,
+          homeGoals: true,
+          awayGoals: true,
+          homePens: true,
+          awayPens: true,
+          status: true
+        }
+      }
+    }
+  });
+
+  if (active.length === 0) {
+    return { skipped: true, reason: "no-active-matches", activation, budget: await getApiFootballBudget(), polled: 0, updated: 0, finalized: 0 };
+  }
+
+  if (!(await canMakeApiFootballCall())) {
+    return { skipped: true, reason: "daily-budget-exhausted", activation, budget: await getApiFootballBudget(), polled: 0, updated: 0, finalized: 0 };
+  }
+
+  let api;
+  try {
+    api = await fetchApiFootballFixturesByIds(active.map((sync) => sync.apiMatchId));
+  } catch (error) {
+    await recordApiFootballCall({ endpoint: "/fixtures?ids", statusCode: null });
+    await prisma.apiFootballSync.updateMany({
+      where: { id: { in: active.map((row) => row.id) } },
+      data: { errorCount: { increment: 1 }, lastError: error instanceof Error ? error.message : String(error), lastPolledAt: now }
+    });
+    throw error;
+  }
+
+  const fixtureByApiId = new Map(api.fixtures.map((fixture) => [fixture.apiMatchId, fixture]));
+  let updated = 0;
+  let finalized = 0;
+
+  for (const sync of active) {
+    const fixture = fixtureByApiId.get(sync.apiMatchId);
+    if (!fixture) continue;
+
+    const { changed, isFinished } = await applyFixtureResult(sync, fixture, now, "api-football");
+    if (!changed) continue;
+
+    await recalculateAll(prisma, {
+      trigger: isFinished ? "official-result" : "live-update",
+      matchId: sync.matchId,
+      createdBy: "api-football"
+    });
+    updated += 1;
+    if (isFinished) finalized += 1;
+  }
+
+  return { skipped: false, activation, budget: await getApiFootballBudget(), polled: active.length, updated, finalized };
+}

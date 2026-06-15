@@ -7,6 +7,7 @@ import { importExcelWorkbook, type ExcelImportPreview } from "@/lib/import/excel
 import { prisma } from "@/lib/prisma";
 import { recalculateAll } from "@/lib/game/recalculateAll";
 import { metadataForRule } from "@/lib/game/ruleConfig";
+import { linkResolvedKnockoutMatchesWithApiFootball } from "@/lib/api-football/linkKnockouts";
 
 export type ImportActionState = {
   preview?: ExcelImportPreview;
@@ -173,6 +174,7 @@ export async function saveMatchAction(formData: FormData) {
   const matchId = String(formData.get("matchId") ?? "").trim();
   const matchNoRaw = String(formData.get("matchNo") ?? "");
   const fechaRaw = String(formData.get("fecha") ?? "");
+  const fecha = fechaRaw ? new Date(fechaRaw) : null;
   const homeTeamId = String(formData.get("homeTeamId") ?? "") || null;
   const awayTeamId = String(formData.get("awayTeamId") ?? "") || null;
   const teams = await prisma.team.findMany({
@@ -182,7 +184,8 @@ export async function saveMatchAction(formData: FormData) {
   const teamNameById = new Map(teams.map((team) => [team.teamId, team.seleccion]));
   const data = {
     matchNo: matchNoRaw === "" ? null : Number(matchNoRaw),
-    fecha: fechaRaw ? new Date(fechaRaw) : null,
+    fecha,
+    kickoffTime: fecha,
     jornadaId: String(formData.get("jornadaId") ?? "") || null,
     fase: String(formData.get("fase") ?? "") || null,
     grupo: String(formData.get("grupo") ?? "") || null,
@@ -312,6 +315,19 @@ export async function saveTournamentBonusAction(formData: FormData) {
   });
   await prisma.adminLog.create({ data: { action: "BONUS_UPDATED", message: "Bonus final actualizado desde admin." } });
   redirect("/admin/bonus?saved=1");
+}
+
+export async function linkKnockoutApiFootballAction() {
+  await requireAdmin();
+  const result = await linkResolvedKnockoutMatchesWithApiFootball();
+  await prisma.adminLog.create({
+    data: {
+      action: "API_FOOTBALL_LINK_KO",
+      message: `Vinculados ${result.linked} cruces con API-Football.`,
+      metadata: result
+    }
+  });
+  redirect(`/admin/partidos?linked=${result.linked}&skipped=${result.skipped.length}`);
 }
 
 export async function saveRulesAction(formData: FormData) {
