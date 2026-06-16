@@ -192,6 +192,55 @@ export async function syncApiFootballMatchIds() {
   };
 }
 
+/** Called from the live-poll when a DRAFT match has no apiFootballId yet.
+ *  Queries the live feeds (no date-based calls) and links any match found.
+ *  Returns the list of newly linked matchIds. */
+export async function tryLinkLiveDraftMatches(): Promise<string[]> {
+  const unlinked = await prisma.match.findMany({
+    where: { status: "DRAFT", apiFootballId: null, homeTeamId: { not: null }, awayTeamId: { not: null } },
+    select: {
+      matchId: true, kickoffTime: true, fecha: true, hora: true,
+      homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true
+    }
+  });
+
+  if (unlinked.length === 0 || !(await canMakeApiFootballCall())) return [];
+
+  const first = await fetchApiFootballWorldCupLiveByLeague();
+  await recordApiFootballCall({ endpoint: first.endpoint, statusCode: first.statusCode });
+
+  let liveFixtures = first.fixtures;
+  if (liveFixtures.length === 0 && (await canMakeApiFootballCall())) {
+    const fallback = await fetchApiFootballWorldCupLiveFromAll();
+    await recordApiFootballCall({ endpoint: fallback.endpoint, statusCode: fallback.statusCode });
+    liveFixtures = fallback.fixtures;
+  }
+
+  if (liveFixtures.length === 0) return [];
+
+  const linked: string[] = [];
+  for (const match of unlinked) {
+    const fixture = bestFixtureForMatch(match, liveFixtures);
+    if (!fixture) continue;
+    const realKickoff = fixture.date ? new Date(fixture.date) : null;
+    const kickoffTime = realKickoff && !Number.isNaN(realKickoff.getTime()) ? realKickoff : match.kickoffTime;
+    await prisma.$transaction(async (tx) => {
+      await tx.match.update({
+        where: { matchId: match.matchId },
+        data: { apiFootballId: fixture.apiMatchId, kickoffTime }
+      });
+      await tx.apiFootballSync.upsert({
+        where: { matchId: match.matchId },
+        update: { apiMatchId: fixture.apiMatchId, competition: fixture.leagueName ?? "FIFA World Cup 2026", isPollingActive: true, lastError: null },
+        create: { matchId: match.matchId, apiMatchId: fixture.apiMatchId, competition: fixture.leagueName ?? "FIFA World Cup 2026", isPollingActive: true }
+      });
+    });
+    linked.push(match.matchId);
+  }
+
+  return linked;
+}
+
 async function finalizeStaleMatches(now = new Date()): Promise<string[]> {
   const stale = await prisma.apiFootballSync.findMany({
     where: {

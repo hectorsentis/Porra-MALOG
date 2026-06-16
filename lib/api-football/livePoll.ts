@@ -4,9 +4,11 @@ import { canMakeApiFootballCall, getApiFootballBudget, recordApiFootballCall } f
 import { fetchApiFootballFixturesByIds } from "./client";
 import { applyFixtureResult } from "./applyFixtureResult";
 import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
+import { tryLinkLiveDraftMatches } from "./syncMatches";
 
 export async function runApiFootballLivePoll(now = new Date()) {
   const activation = await ensureLiveMatchesActive(now);
+  const newlyLinked = await tryLinkLiveDraftMatches();
   const active = await prisma.apiFootballSync.findMany({
     where: { isPollingActive: true },
     include: {
@@ -29,7 +31,7 @@ export async function runApiFootballLivePoll(now = new Date()) {
   });
 
   if (active.length === 0) {
-    return { skipped: true, reason: "no-active-matches", activation, budget: await getApiFootballBudget(), polled: 0, updated: 0, finalized: 0 };
+    return { skipped: true, reason: "no-active-matches", activation, newlyLinked, budget: await getApiFootballBudget(), polled: 0, updated: 0, finalized: 0 };
   }
 
   if (!(await canMakeApiFootballCall())) {
@@ -68,5 +70,5 @@ export async function runApiFootballLivePoll(now = new Date()) {
     if (isFinished) finalized += 1;
   }
 
-  return { skipped: false, activation, budget: await getApiFootballBudget(), polled: active.length, updated, finalized };
+  return { skipped: false, activation, newlyLinked, budget: await getApiFootballBudget(), polled: active.length, updated, finalized };
 }
