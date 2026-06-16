@@ -38,10 +38,21 @@ export async function ensureLiveMatchesActive(now = new Date()) {
   const activatedMatches = await prisma.match.updateMany({
     where: {
       status: MatchStatus.PENDING,
-      kickoffTime: { lte: now, gte: activeWindowStart },
-      apiFootballSync: { isNot: null }
+      kickoffTime: { lte: now, gte: activeWindowStart }
     },
     data: { status: MatchStatus.DRAFT }
+  });
+
+  // Matches that activated via hora-estimation but have no API link can't
+  // be polled for results — reset them to PENDING once outside the match
+  // window so the admin panel shows them as pending manual entry.
+  await prisma.match.updateMany({
+    where: {
+      status: MatchStatus.DRAFT,
+      apiFootballSync: { is: null },
+      kickoffTime: { lt: timeoutWindowStart }
+    },
+    data: { status: MatchStatus.PENDING }
   });
 
   const activatedSyncs = await prisma.apiFootballSync.updateMany({

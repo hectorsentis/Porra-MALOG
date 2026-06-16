@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { countryByCode, formatCountry } from "@/lib/countries";
 import { recalculateAll } from "@/lib/game/recalculateAll";
+import { getMatchKickoffUtc } from "@/lib/utils/timezone";
 import {
   fetchApiFootballFixturesByIds,
   fetchApiFootballScheduledFixtures,
@@ -100,6 +101,7 @@ export async function syncApiFootballMatchIds() {
       awayTeam: true,
       apiFootballId: true,
       status: true,
+      hora: true,
       apiFootballSync: { select: { apiMatchId: true } }
     },
     orderBy: [{ matchNo: "asc" }]
@@ -159,6 +161,22 @@ export async function syncApiFootballMatchIds() {
     else created += 1;
   }
 
+  // For unlinked matches with a known hora, pre-compute kickoffTime so
+  // ensureLiveMatchesActive can activate them at the right moment even when
+  // API-Football hasn't provided a fixture yet.
+  const kickoffUpdates: Promise<unknown>[] = [];
+  for (const match of matches) {
+    if (match.apiFootballId != null) continue;
+    if (!match.fecha || !match.hora) continue;
+    const horaKickoff = getMatchKickoffUtc(match.fecha, match.hora);
+    if (Number.isNaN(horaKickoff.getTime())) continue;
+    if (!match.kickoffTime || Math.abs(horaKickoff.getTime() - match.kickoffTime.getTime()) > 60_000) {
+      kickoffUpdates.push(prisma.match.update({ where: { matchId: match.matchId }, data: { kickoffTime: horaKickoff } }));
+    }
+  }
+  await Promise.all(kickoffUpdates);
+  const kickoffPrecomputed = kickoffUpdates.length;
+
   const finalized = await finalizeStaleMatches();
 
   return {
@@ -167,6 +185,7 @@ export async function syncApiFootballMatchIds() {
     localMatches: matches.length,
     created,
     updated,
+    kickoffPrecomputed,
     unmatched: unmatched.slice(0, 20),
     unmatchedCount: unmatched.length,
     finalized
