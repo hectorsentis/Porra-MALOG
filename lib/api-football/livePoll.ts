@@ -35,7 +35,7 @@ export async function runApiFootballLivePoll(now = new Date()) {
   }
 
   if (!(await canMakeApiFootballCall())) {
-    return { skipped: true, reason: "daily-budget-exhausted", activation, budget: await getApiFootballBudget(), polled: 0, updated: 0, finalized: 0 };
+    return { skipped: true, reason: "rate-limit", activation, budget: await getApiFootballBudget(), polled: 0, updated: 0, finalized: 0 };
   }
 
   let api;

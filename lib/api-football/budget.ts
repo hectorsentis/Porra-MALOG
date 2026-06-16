@@ -1,20 +1,27 @@
 import { prisma } from "@/lib/prisma";
-import { getEstDayKey } from "@/lib/utils/timezone";
-import { API_FOOTBALL_DAILY_LIMIT, API_FOOTBALL_SAFETY_RESERVE } from "./constants";
+import { FOOTBALL_DATA_RATE_LIMIT_PER_MIN, FOOTBALL_DATA_SAFETY_BUFFER } from "./constants";
 
-export async function getCallsUsedToday(dayKey = getEstDayKey(new Date())) {
-  return prisma.apiCallLog.count({ where: { dayKey } });
+const RATE_WINDOW_MS = 60_000;
+
+export async function getCallsUsedLastMinute() {
+  const since = new Date(Date.now() - RATE_WINDOW_MS);
+  return prisma.apiCallLog.count({ where: { createdAt: { gte: since } } });
 }
 
-export async function canMakeApiFootballCall(dayKey = getEstDayKey(new Date())) {
-  const used = await getCallsUsedToday(dayKey);
-  return used < API_FOOTBALL_DAILY_LIMIT - API_FOOTBALL_SAFETY_RESERVE;
+// Legacy alias used by some call sites that still pass a dayKey arg
+export async function getCallsUsedToday(_dayKey?: string) {
+  return getCallsUsedLastMinute();
+}
+
+export async function canMakeApiFootballCall(_dayKey?: string) {
+  const used = await getCallsUsedLastMinute();
+  return used < FOOTBALL_DATA_RATE_LIMIT_PER_MIN - FOOTBALL_DATA_SAFETY_BUFFER;
 }
 
 export async function recordApiFootballCall(args: { matchId?: string | null; endpoint: string; statusCode?: number | null; dayKey?: string }) {
   await prisma.apiCallLog.create({
     data: {
-      dayKey: args.dayKey ?? getEstDayKey(new Date()),
+      dayKey: args.dayKey ?? new Date().toISOString().slice(0, 10),
       matchId: args.matchId ?? null,
       endpoint: args.endpoint,
       statusCode: args.statusCode ?? null
@@ -22,15 +29,14 @@ export async function recordApiFootballCall(args: { matchId?: string | null; end
   });
 }
 
-export async function getApiFootballBudget(dayKey = getEstDayKey(new Date())) {
-  const used = await getCallsUsedToday(dayKey);
-  const reservedLimit = API_FOOTBALL_DAILY_LIMIT - API_FOOTBALL_SAFETY_RESERVE;
+export async function getApiFootballBudget(_dayKey?: string) {
+  const usedLastMinute = await getCallsUsedLastMinute();
+  const limit = FOOTBALL_DATA_RATE_LIMIT_PER_MIN - FOOTBALL_DATA_SAFETY_BUFFER;
   return {
-    dayKey,
-    dailyLimit: API_FOOTBALL_DAILY_LIMIT,
-    safetyReserve: API_FOOTBALL_SAFETY_RESERVE,
-    reservedLimit,
-    used,
-    remaining: Math.max(0, reservedLimit - used)
+    source: "football-data.org",
+    rateLimit: FOOTBALL_DATA_RATE_LIMIT_PER_MIN,
+    safetyBuffer: FOOTBALL_DATA_SAFETY_BUFFER,
+    usedLastMinute,
+    remaining: Math.max(0, limit - usedLastMinute)
   };
 }
