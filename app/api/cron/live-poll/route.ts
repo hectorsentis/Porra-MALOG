@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runApiFootballLivePoll } from "@/lib/api-football/livePoll";
+import { getCachedKickoffWindows, hasMatchInLiveWindow } from "@/lib/live/kickoffCache";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const now = new Date();
+
+  // Fast pre-check: read cached kickoff schedule (no DB query most of the time).
+  // If no match is in the active window, skip the full poll entirely.
   try {
-    const result = await runApiFootballLivePoll();
+    const kickoffs = await getCachedKickoffWindows();
+    if (!hasMatchInLiveWindow(kickoffs, now)) {
+      return NextResponse.json({ skipped: true, reason: "no-match-in-window", checkedAt: now.toISOString() });
+    }
+  } catch {
+    // If cache read fails, proceed with full poll to be safe
+  }
+
+  try {
+    const result = await runApiFootballLivePoll(now);
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
