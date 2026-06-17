@@ -1,4 +1,5 @@
 import { isOfficialMatchForScoring } from "./matchStatus";
+import { sortFifaGroupRows, sortFifaThirdPlaceRows } from "./fifaGroupRanking";
 
 const THIRD_PLACE_QUALIFIERS = 8;
 
@@ -42,7 +43,7 @@ export type GroupStandingsResult = {
   groupStageComplete: boolean;
 };
 
-type TableRow = ComputedGroupStanding & { tieBreakerRank: number };
+type TableRow = ComputedGroupStanding & { tieBreakerRank: number; fifaRank: number | null };
 
 function isGroupStageMatch(match: GroupMatchInput): boolean {
   return (match.fase ?? "").toLocaleUpperCase("es-ES").includes("GRUPO") && Boolean(match.grupo);
@@ -89,70 +90,18 @@ function buildTable(grupo: string, teams: GroupTeamInput[], matches: GroupMatchI
       dg: s.gf - s.gc,
       pts: s.pg * 3 + s.pe,
       qualified: false,
-      tieBreakerRank: team.tieBreakerRank ?? Number.MAX_SAFE_INTEGER
+      tieBreakerRank: team.tieBreakerRank ?? Number.MAX_SAFE_INTEGER,
+      fifaRank: team.fifaRank ?? null
     };
   });
 }
 
-function headToHeadTable(rows: TableRow[], matches: GroupMatchInput[]) {
-  const ids = new Set(rows.map((row) => row.teamId));
-  const h2h = new Map(rows.map((row) => [row.teamId, { pts: 0, gf: 0, gc: 0 }]));
-  for (const match of matches) {
-    const homeId = match.homeTeamId ?? "";
-    const awayId = match.awayTeamId ?? "";
-    if (!ids.has(homeId) || !ids.has(awayId) || homeId === awayId) continue;
-    if (match.homeGoals == null || match.awayGoals == null) continue;
-    const home = h2h.get(homeId)!;
-    const away = h2h.get(awayId)!;
-    home.gf += match.homeGoals;
-    home.gc += match.awayGoals;
-    away.gf += match.awayGoals;
-    away.gc += match.homeGoals;
-    if (match.homeGoals > match.awayGoals) home.pts += 3;
-    else if (match.homeGoals < match.awayGoals) away.pts += 3;
-    else {
-      home.pts += 1;
-      away.pts += 1;
-    }
-  }
-  return h2h;
-}
-
 function sortGroupTable(rows: TableRow[], matches: GroupMatchInput[]): TableRow[] {
-  const byPoints = [...rows].sort((a, b) => b.pts - a.pts);
-  const result: TableRow[] = [];
-  let i = 0;
-  while (i < byPoints.length) {
-    let j = i;
-    while (j + 1 < byPoints.length && byPoints[j + 1].pts === byPoints[i].pts) j += 1;
-    const tied = byPoints.slice(i, j + 1);
-    if (tied.length === 1) {
-      result.push(tied[0]);
-    } else {
-      const h2h = headToHeadTable(tied, matches);
-      const broken = [...tied].sort((a, b) => {
-        const h2hA = h2h.get(a.teamId)!;
-        const h2hB = h2h.get(b.teamId)!;
-        return (
-          b.dg - a.dg ||
-          b.gf - a.gf ||
-          h2hB.pts - h2hA.pts ||
-          h2hB.gf - h2hB.gc - (h2hA.gf - h2hA.gc) ||
-          h2hB.gf - h2hA.gf ||
-          a.tieBreakerRank - b.tieBreakerRank
-        );
-      });
-      result.push(...broken);
-    }
-    i = j + 1;
-  }
-  return result;
+  return sortFifaGroupRows(rows, matches);
 }
 
 function sortThirdPlaces(rows: TableRow[]): TableRow[] {
-  return [...rows].sort(
-    (a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.tieBreakerRank - b.tieBreakerRank
-  );
+  return sortFifaThirdPlaceRows(rows);
 }
 
 export function computeGroupStandings(matches: GroupMatchInput[], teams: GroupTeamInput[]): GroupStandingsResult {

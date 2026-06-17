@@ -94,6 +94,44 @@ describe("computeTournamentState", () => {
     expect(groupA[1]).toMatchObject({ teamId: "A2", pts: 6, dg: 0 });
   });
 
+  it("uses FIFA ranking before tieBreakerRank when group criteria are fully tied", () => {
+    const tiedTeams = [
+      { teamId: "A1", seleccion: "A1", grupo: "A", tieBreakerRank: 4, fifaRank: 40 },
+      { teamId: "A2", seleccion: "A2", grupo: "A", tieBreakerRank: 3, fifaRank: 10 },
+      { teamId: "A3", seleccion: "A3", grupo: "A", tieBreakerRank: 2, fifaRank: 30 },
+      { teamId: "A4", seleccion: "A4", grupo: "A", tieBreakerRank: 1, fifaRank: 20 }
+    ];
+    const tiedMatches = [
+      groupMatch("M001", "A", "A1", "A2", 0, 0),
+      groupMatch("M002", "A", "A1", "A3", 0, 0),
+      groupMatch("M003", "A", "A1", "A4", 0, 0),
+      groupMatch("M004", "A", "A2", "A3", 0, 0),
+      groupMatch("M005", "A", "A2", "A4", 0, 0),
+      groupMatch("M006", "A", "A3", "A4", 0, 0)
+    ];
+
+    const state = computeTournamentState(tiedMatches, tiedTeams, []);
+
+    expect(state.standings.filter((row) => row.grupo === "A").map((row) => row.teamId)).toEqual(["A2", "A4", "A3", "A1"]);
+  });
+
+  it("recalculates head-to-head for a subgroup that remains tied", () => {
+    const state = computeTournamentState(
+      [
+        groupMatch("M001", "A", "A1", "A2", 2, 0),
+        groupMatch("M002", "A", "A2", "A3", 1, 0),
+        groupMatch("M003", "A", "A3", "A1", 1, 0),
+        groupMatch("M004", "A", "A1", "A4", 4, 0),
+        groupMatch("M005", "A", "A2", "A4", 3, 0),
+        groupMatch("M006", "A", "A3", "A4", 3, 1)
+      ],
+      teams.filter((team) => team.grupo === "A"),
+      []
+    );
+
+    expect(state.standings.filter((row) => row.grupo === "A").map((row) => row.teamId)).toEqual(["A1", "A2", "A3", "A4"]);
+  });
+
   it("uses the official third-place mapping to resolve R32 candidate slots", () => {
     const matches = [
       groupMatch("M001", "A", "A1", "A2", 2, 0),

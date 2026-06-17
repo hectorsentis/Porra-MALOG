@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import { sortFifaGroupRows, sortFifaThirdPlaceRows } from "./fifaGroupRanking";
 import { isOfficialMatchForScoring } from "./matchStatus";
 
 type TournamentMatch = {
@@ -218,72 +219,13 @@ function buildTable(grupo: string, teams: TournamentTeam[], matches: TournamentM
   });
 }
 
-function headToHead(rows: TournamentStandingRow[], matches: TournamentMatch[]) {
-  const ids = new Set(rows.map((row) => row.teamId));
-  const table = new Map(rows.map((row) => [row.teamId, { pts: 0, gf: 0, gc: 0 }]));
-  for (const match of matches.filter(isOfficialMatchForScoring)) {
-    const homeId = match.homeTeamId ?? "";
-    const awayId = match.awayTeamId ?? "";
-    if (!ids.has(homeId) || !ids.has(awayId) || match.homeGoals == null || match.awayGoals == null) continue;
-    const home = table.get(homeId)!;
-    const away = table.get(awayId)!;
-    home.gf += match.homeGoals;
-    home.gc += match.awayGoals;
-    away.gf += match.awayGoals;
-    away.gc += match.homeGoals;
-    if (match.homeGoals > match.awayGoals) home.pts += 3;
-    else if (match.homeGoals < match.awayGoals) away.pts += 3;
-    else {
-      home.pts += 1;
-      away.pts += 1;
-    }
-  }
-  return table;
-}
-
 function sortGroup(rows: TournamentStandingRow[], matches: TournamentMatch[]) {
-  const byPoints = [...rows].sort((a, b) => b.pts - a.pts);
-  const result: TournamentStandingRow[] = [];
-  for (let i = 0; i < byPoints.length; ) {
-    let j = i;
-    while (j + 1 < byPoints.length && byPoints[j + 1].pts === byPoints[i].pts) j += 1;
-    const tied = byPoints.slice(i, j + 1);
-    if (tied.length === 1) {
-      result.push(tied[0]);
-    } else {
-      const h2h = headToHead(tied, matches);
-      result.push(
-        ...tied.sort((a, b) => {
-          const aH = h2h.get(a.teamId)!;
-          const bH = h2h.get(b.teamId)!;
-          return (
-            b.dg - a.dg ||
-            b.gf - a.gf ||
-            bH.pts - aH.pts ||
-            bH.gf - bH.gc - (aH.gf - aH.gc) ||
-            bH.gf - aH.gf ||
-            (a.fifaRank ?? Number.MAX_SAFE_INTEGER) - (b.fifaRank ?? Number.MAX_SAFE_INTEGER) ||
-            a.tieBreakerRank - b.tieBreakerRank ||
-            a.teamId.localeCompare(b.teamId, "es-ES")
-          );
-        })
-      );
-    }
-    i = j + 1;
-  }
-  return result.map((row, index) => ({ ...row, pos: index + 1, groupCode: `${index + 1}${row.grupo}` }));
+  const officialMatches = matches.filter(isOfficialMatchForScoring);
+  return sortFifaGroupRows(rows, officialMatches).map((row, index) => ({ ...row, pos: index + 1, groupCode: `${index + 1}${row.grupo}` }));
 }
 
 function sortThirds(rows: TournamentStandingRow[]) {
-  return [...rows].sort(
-    (a, b) =>
-      b.pts - a.pts ||
-      b.dg - a.dg ||
-      b.gf - a.gf ||
-      (a.fifaRank ?? Number.MAX_SAFE_INTEGER) - (b.fifaRank ?? Number.MAX_SAFE_INTEGER) ||
-      a.tieBreakerRank - b.tieBreakerRank ||
-      a.teamId.localeCompare(b.teamId, "es-ES")
-  );
+  return sortFifaThirdPlaceRows(rows);
 }
 
 function comboForKey(combos: ThirdCombo[], key: string) {

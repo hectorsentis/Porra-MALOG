@@ -186,6 +186,57 @@ describe("computeGroupStandings", () => {
     expect(groupA[0]).toMatchObject({ teamId: "A1", pts: 6, dg: 4 });
     expect(groupA[1]).toMatchObject({ teamId: "A2", pts: 6, dg: 0 });
   });
+
+  it("uses FIFA ranking before internal tieBreakerRank when all sporting criteria are tied", () => {
+    const matches = [
+      ["M1", "A1", "A2"],
+      ["M2", "A1", "A3"],
+      ["M3", "A1", "A4"],
+      ["M4", "A2", "A3"],
+      ["M5", "A2", "A4"],
+      ["M6", "A3", "A4"]
+    ].map(([matchId, homeTeamId, awayTeamId]) => ({
+      matchId,
+      fase: "GRUPOS",
+      grupo: "A",
+      homeTeamId,
+      awayTeamId,
+      homeGoals: 0,
+      awayGoals: 0,
+      finished: true,
+      status: "OFFICIAL"
+    }));
+
+    const standings = computeGroupStandings(matches, [
+      { teamId: "A1", grupo: "A", tieBreakerRank: 4, fifaRank: 40 },
+      { teamId: "A2", grupo: "A", tieBreakerRank: 3, fifaRank: 10 },
+      { teamId: "A3", grupo: "A", tieBreakerRank: 2, fifaRank: 30 },
+      { teamId: "A4", grupo: "A", tieBreakerRank: 1, fifaRank: 20 }
+    ]);
+
+    expect(standings.standings.filter((row) => row.grupo === "A").map((row) => row.teamId)).toEqual(["A2", "A4", "A3", "A1"]);
+  });
+
+  it("reapplies FIFA tie-breakers inside a still-tied subgroup", () => {
+    const standings = computeGroupStandings(
+      [
+        { matchId: "M1", fase: "GRUPOS", grupo: "A", homeTeamId: "A1", awayTeamId: "A2", homeGoals: 2, awayGoals: 0, finished: true, status: "OFFICIAL" },
+        { matchId: "M2", fase: "GRUPOS", grupo: "A", homeTeamId: "A2", awayTeamId: "A3", homeGoals: 1, awayGoals: 0, finished: true, status: "OFFICIAL" },
+        { matchId: "M3", fase: "GRUPOS", grupo: "A", homeTeamId: "A3", awayTeamId: "A1", homeGoals: 1, awayGoals: 0, finished: true, status: "OFFICIAL" },
+        { matchId: "M4", fase: "GRUPOS", grupo: "A", homeTeamId: "A1", awayTeamId: "A4", homeGoals: 4, awayGoals: 0, finished: true, status: "OFFICIAL" },
+        { matchId: "M5", fase: "GRUPOS", grupo: "A", homeTeamId: "A2", awayTeamId: "A4", homeGoals: 3, awayGoals: 0, finished: true, status: "OFFICIAL" },
+        { matchId: "M6", fase: "GRUPOS", grupo: "A", homeTeamId: "A3", awayTeamId: "A4", homeGoals: 3, awayGoals: 1, finished: true, status: "OFFICIAL" }
+      ],
+      [
+        { teamId: "A1", grupo: "A", tieBreakerRank: 1, fifaRank: 1 },
+        { teamId: "A2", grupo: "A", tieBreakerRank: 2, fifaRank: 2 },
+        { teamId: "A3", grupo: "A", tieBreakerRank: 3, fifaRank: 3 },
+        { teamId: "A4", grupo: "A", tieBreakerRank: 4, fifaRank: 4 }
+      ]
+    );
+
+    expect(standings.standings.filter((row) => row.grupo === "A").map((row) => row.teamId)).toEqual(["A1", "A2", "A3", "A4"]);
+  });
 });
 
 describe("scoreBonus", () => {
