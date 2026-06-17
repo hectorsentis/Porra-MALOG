@@ -29,6 +29,9 @@ function normalize(value: string | null | undefined) {
     .replace(/\bCURAZAO\b/g, "CURACAO")
     .replace(/\bUNITED STATES\b/g, "USA")
     .replace(/\bCOTE D IVOIRE\b/g, "IVORY COAST")
+    .replace(/\bCONGO DR\b/g, "DR CONGO")
+    .replace(/\bBOSNIA HERZEGOVINA\b/g, "BOSNIA AND HERZEGOVINA")
+    .replace(/\bCZECHIA\b/g, "CZECH REPUBLIC")
     .trim();
 }
 
