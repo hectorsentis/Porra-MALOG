@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry, formatCountryOrNull } from "@/lib/countries";
 import type { MatchStatus } from "@prisma/client";
@@ -48,7 +48,6 @@ function statusLabel(status: string) {
 }
 
 export async function getMatchFilterOptions() {
-  noStore();
   const [matches, teams] = await Promise.all([
     prisma.match.findMany({ select: { fase: true, grupo: true, jornadaId: true, status: true, fecha: true, homeTeamId: true, awayTeamId: true, homeTeamIdManual: true, awayTeamIdManual: true, homeTeam: true, awayTeam: true }, orderBy: [{ fase: "asc" }, { jornadaId: "asc" }] }),
     prisma.team.findMany({ select: { seleccion: true }, orderBy: { seleccion: "asc" } })
@@ -137,7 +136,6 @@ function calculatePedometer(fase: string | null | undefined, bets: PedometerBet[
   };
 }
 export async function getPublicMatches(filters: PublicFilters = {}) {
-  noStore();
   const dateFilter = dateRange(filters.fechaDesde, filters.fechaHasta, filters.fecha);
   const status = filters.estado && ["PENDING", "DRAFT", "OFFICIAL", "VOID"].includes(filters.estado) ? (filters.estado as MatchStatus) : undefined;
   const matches = await prisma.match.findMany({
@@ -194,7 +192,6 @@ export async function getPublicMatches(filters: PublicFilters = {}) {
 }
 
 export async function getPublicMatchDetail(matchId: string) {
-  noStore();
   const match = await prisma.match.findUnique({
     where: { matchId },
     include: {

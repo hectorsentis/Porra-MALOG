@@ -10,9 +10,8 @@ import { parsePublicFilters } from "@/lib/public/filters";
 import { getMatchFilterOptions, getPublicMatches } from "@/lib/public/matches";
 import { AutoRefresh } from "@/components/live/AutoRefresh";
 import { LiveBadge } from "@/components/live/LiveBadge";
-import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 const matchFilterFields = ["fase", "grupo", "jornada", "equipo", "estado"] as const;
 type MatchFilterField = (typeof matchFilterFields)[number];
@@ -64,7 +63,6 @@ function statusClass(status: string) {
 
 export default async function PartidosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const filters = parsePublicFilters(await searchParams);
-  await ensureLiveMatchesActive();
   const [matches, options] = await Promise.all([getPublicMatches(filters), getMatchFilterOptions()]);
   const hasLive = matches.some((match) => match.status === "DRAFT");
 

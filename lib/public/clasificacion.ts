@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import { getMatchMadridDayKey } from "@/lib/utils/timezone";
@@ -59,7 +59,6 @@ export type ClassificationOverview = {
 };
 
 export async function getClassificationOverview(filters: PublicFilters = {}): Promise<ClassificationOverview> {
-  noStore();
 
   const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, draftMatchesCount, matchEvents, liveMatchRow] = await Promise.all([
     prisma.generalRanking.findMany({

@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry, formatCountryOrNull } from "@/lib/countries";
 import { predictionSign } from "./matchStats";
@@ -67,7 +67,6 @@ export type ParticipantBetsData = {
 };
 
 export async function getPublicParticipantBets(participantId: string): Promise<ParticipantBetsData> {
-  noStore();
 
   const [matchBets, scoringMatches, groupBets, bonusBet] = await Promise.all([
     prisma.betMatch.findMany({

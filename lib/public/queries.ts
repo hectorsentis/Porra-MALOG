@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { MatchStatus } from "@prisma/client";
 import { formatCountry } from "@/lib/countries";
 import { prisma } from "@/lib/prisma";
@@ -45,7 +45,6 @@ function madridStartOfToday() {
 }
 
 export async function getPublicDashboard(filters: PublicFilters = {}): Promise<PublicDashboardData> {
-  noStore();
   try {
     const [classification, participantsCount, computedMatches, nextMatch, liveMatches] = await Promise.all([
       prisma.generalRanking.findMany({
@@ -162,7 +161,6 @@ export async function getPublicClassification(filters: PublicFilters = {}) {
 }
 
 export async function getPublicParticipant(slug: string): Promise<PublicParticipantProfile | null> {
-  noStore();
   try {
     const participant = await prisma.participant.findUnique({
       where: { slug },

@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
-import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  await ensureLiveMatchesActive();
   const matches = await prisma.match.findMany({
     where: { status: "DRAFT" },
     orderBy: [{ kickoffTime: "asc" }, { fecha: "asc" }, { matchNo: "asc" }],

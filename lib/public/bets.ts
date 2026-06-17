@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import type { PublicFilters } from "./filters";
@@ -43,7 +43,6 @@ function statsNumber(values: number[]) {
 }
 
 export async function getBonusBetInsights(filters: PublicFilters) {
-  noStore();
   const rows = await prisma.betBonus.findMany({
     select: {
       campeon: true,
@@ -99,7 +98,6 @@ export async function getBonusBetInsights(filters: PublicFilters) {
 }
 
 export async function getGroupMatchBetInsights(filters: PublicFilters) {
-  noStore();
   const rows = await prisma.betMatch.findMany({
     where: {
       match: {
@@ -206,7 +204,6 @@ export async function getGroupMatchBetInsights(filters: PublicFilters) {
 }
 
 export async function getGroupClassificationBetInsights(filters: PublicFilters) {
-  noStore();
   const rows = await prisma.betGroupPosition.findMany({
     where: {
       valid: true,

@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import { getTournamentBonusResult, type TournamentBonusResult } from "@/lib/game/bonusResults";
@@ -90,7 +90,6 @@ function statusLabel(status: string) {
 }
 
 export async function getFixtureOverview() {
-  noStore();
   const db = prisma as unknown as FixtureDb;
   const [standings, thirds, matches, teams, bonus] = await Promise.all([
     db.tournamentGroupStanding.findMany({ orderBy: [{ grupo: "asc" }, { pos: "asc" }] }),

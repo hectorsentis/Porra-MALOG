@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 
@@ -71,7 +71,6 @@ function clean(values: Array<string | null>) {
 }
 
 export async function getPublicFilterOptions(): Promise<PublicFilterOptions> {
-  noStore();
   const [rankings, matches, teams] = await Promise.all([
     prisma.generalRanking.findMany({
       select: { participant: { select: { alias: true, departamento: true, rango: true } } },

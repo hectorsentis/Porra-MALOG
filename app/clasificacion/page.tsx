@@ -12,9 +12,8 @@ import { getTemporalClassification } from "@/lib/public/temporal";
 import { getHistoricalRanking, type HistoricalRanking } from "@/lib/public/historico";
 import { DeltaBadge } from "@/components/clasificacion/DeltaBadge";
 import { AutoRefresh } from "@/components/live/AutoRefresh";
-import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 const tabs = [
   ["general", "General"],
@@ -185,7 +184,6 @@ export default async function ClasificacionPage({
 }) {
   const params = await searchParams;
   const filters = parsePublicFilters(params);
-  await ensureLiveMatchesActive();
   const activeTab = filters.tab && ["general", "diaria", "semanal", "historico"].includes(filters.tab) ? filters.tab : "general";
   const deltaParam = Array.isArray(params.delta) ? params.delta[0] : params.delta;
   const delta: DeltaMode = deltaParam === "phase" || deltaParam === "day" ? deltaParam : "both";

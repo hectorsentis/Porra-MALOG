@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import { scoreMatch } from "@/lib/game/scoreMatch";
@@ -19,7 +19,6 @@ function readNumber(value?: string) {
 }
 
 export async function getSimulatorData(filters: PublicFilters & { homeGoals?: string; awayGoals?: string; qualifiedTeamId?: string }) {
-  noStore();
   const [rankings, matches] = await Promise.all([
     prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { alias: true, departamento: true, rango: true } } } }),
     prisma.match.findMany({

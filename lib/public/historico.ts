@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import { phaseGroupOf } from "@/lib/game/recalculateAll";
@@ -43,7 +43,6 @@ export type HistoricalRanking = {
 };
 
 export async function getHistoricalRanking(filters: PublicFilters = {}, snapshotId?: string): Promise<HistoricalRanking> {
-  noStore();
 
   const [matchSnapshots, phaseMarkers, matches] = await Promise.all([
     prisma.rankingSnapshot.findMany({

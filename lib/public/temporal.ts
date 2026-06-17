@@ -1,4 +1,4 @@
-import { unstable_noStore as noStore } from "next/cache";
+﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import type { PublicFilters } from "./filters";
@@ -34,7 +34,6 @@ async function availableOfficialDays() {
 }
 
 export async function getTemporalFilterOptions() {
-  noStore();
   const days = await availableOfficialDays();
   return { days, latestDay: days.at(-1) ?? null };
 }
@@ -57,7 +56,6 @@ export type TemporalRankingRow = {
 };
 
 export async function getTemporalClassification(filters: PublicFilters, mode: "daily" | "weekly") {
-  noStore();
   const options = await getTemporalFilterOptions();
   const selectedDay = filters.fecha ?? options.latestDay;
   if (!selectedDay) return { selectedDay: null, startDay: null, endDay: null, rows: [] as TemporalRankingRow[], availableDays: options.days };
@@ -135,7 +133,6 @@ export type DailyEvolutionRow = {
 };
 
 export async function getDailyEvolution(filters: PublicFilters) {
-  noStore();
   const rows = await prisma.scoringMatch.findMany({
     where: {
       match: {
@@ -217,7 +214,6 @@ export type ParticipantEvolutionPoint = {
 };
 
 export async function getParticipantPointsEvolution(filters: PublicFilters) {
-  noStore();
   const rows = await prisma.scoringMatch.findMany({
     where: {
       match: {

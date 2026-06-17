@@ -10,9 +10,8 @@ import { PublicFiltersForm } from "@/components/PublicFiltersForm";
 import { FilterChips } from "@/components/FilterChips";
 import { AutoRefresh } from "@/components/live/AutoRefresh";
 import { LiveBadge } from "@/components/live/LiveBadge";
-import { ensureLiveMatchesActive } from "@/lib/live/ensure-active";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 function Kpi({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -65,7 +64,6 @@ export default async function HomePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const filters = parsePublicFilters(await searchParams);
-  await ensureLiveMatchesActive();
   const data = await getPublicDashboard(filters);
 
   return (
