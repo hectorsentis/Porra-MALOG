@@ -328,6 +328,54 @@ describe("ranking", () => {
     expect(ranking.map((row) => row.alias)).toEqual(["Charlie", "Alfa", "Bravo"]);
   });
 
+  it("breaks ties by bonus points before champion prediction", () => {
+    const ranking = calculateRanking([
+      { participantId: "P1", alias: "Alfa", pointsMatches: 10, pointsBonus: 3 },
+      { participantId: "P2", alias: "Bravo", pointsMatches: 10, pointsBonus: 8 },
+    ]);
+    expect(ranking.map((row) => row.alias)).toEqual(["Bravo", "Alfa"]);
+  });
+
+  it("breaks ties by champion prediction", () => {
+    const ranking = calculateRanking([
+      { participantId: "P1", alias: "Alfa", pointsMatches: 10, pointsBonus: 5, campeonOk: false },
+      { participantId: "P2", alias: "Bravo", pointsMatches: 10, pointsBonus: 5, campeonOk: true },
+    ]);
+    expect(ranking.map((row) => row.alias)).toEqual(["Bravo", "Alfa"]);
+  });
+
+  it("breaks ties by subcampeon + semifinalists", () => {
+    const ranking = calculateRanking([
+      { participantId: "P1", alias: "Alfa", pointsMatches: 10, pointsBonus: 5, campeonOk: true, subcampeonOk: false, semifinalistasOk: 1 },
+      { participantId: "P2", alias: "Bravo", pointsMatches: 10, pointsBonus: 5, campeonOk: true, subcampeonOk: true, semifinalistasOk: 2 },
+    ]);
+    expect(ranking.map((row) => row.alias)).toEqual(["Bravo", "Alfa"]);
+  });
+
+  it("breaks ties by eliminatorias points", () => {
+    const ranking = calculateRanking([
+      { participantId: "P1", alias: "Alfa", pointsMatches: 2, pointsEliminatorias: 3, pointsBonus: 5 },
+      { participantId: "P2", alias: "Bravo", pointsMatches: 0, pointsEliminatorias: 5, pointsBonus: 5 },
+    ]);
+    expect(ranking.map((row) => row.alias)).toEqual(["Bravo", "Alfa"]);
+  });
+
+  it("breaks ties by exact scores in group stage", () => {
+    const ranking = calculateRanking([
+      { participantId: "P1", alias: "Alfa", pointsMatches: 10, exactScores: 2 },
+      { participantId: "P2", alias: "Bravo", pointsMatches: 10, exactScores: 5 },
+    ]);
+    expect(ranking.map((row) => row.alias)).toEqual(["Bravo", "Alfa"]);
+  });
+
+  it("breaks ties by correct diffs then signs", () => {
+    const ranking = calculateRanking([
+      { participantId: "P1", alias: "Alfa", pointsMatches: 10, correctDiffs: 3, correctSigns: 8 },
+      { participantId: "P2", alias: "Bravo", pointsMatches: 10, correctDiffs: 5, correctSigns: 2 },
+    ]);
+    expect(ranking.map((row) => row.alias)).toEqual(["Bravo", "Alfa"]);
+  });
+
   it("calculates Delta_Pos and Delta_Points", () => {
     const [row] = calculateRanking([
       { participantId: "P1", alias: "Alfa", pointsMatches: 12, previousPos: 3, previousPoints: 8 }

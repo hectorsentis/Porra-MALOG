@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { metadataForRule } from "@/lib/game/ruleConfig";
 import { countryCatalog, countryForTeam, normalizeCountryFlag, normalizeCountryName } from "@/lib/countries";
+import { getMatchKickoffUtc } from "@/lib/utils/timezone";
 
 const participantSchema = z.object({
   participantId: z.string().min(1),
@@ -221,6 +222,47 @@ function matchHoraDisplayMap(workbook: XLSX.WorkBook): Map<string, string> {
     const matchId = text(rawMatrix[rowNumber]?.[matchIdIndex]);
     const formattedHora = formattedMatrix[rowNumber]?.[horaIndex];
     if (matchId && formattedHora != null) result.set(matchId, String(formattedHora));
+  }
+  return result;
+}
+
+function parseDisplayFecha(display: string): Date | null {
+  const parts = display.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (!parts) return null;
+  const month = Number(parts[1]) - 1;
+  const day = Number(parts[2]);
+  let year = Number(parts[3]);
+  if (year < 100) year += 2000;
+  return new Date(Date.UTC(year, month, day));
+}
+
+function matchFechaDisplayMap(workbook: XLSX.WorkBook): Map<string, string> {
+  const result = new Map<string, string>();
+  const sheet = workbook.Sheets["04_MATCHES"];
+  if (!sheet) return result;
+  const rawMatrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: null });
+  const formattedMatrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false, defval: null });
+
+  let matchIdIndex = -1;
+  let fechaIndex = -1;
+  let headerRowNumber = -1;
+  for (let rowNumber = 0; rowNumber < Math.min(rawMatrix.length, 20); rowNumber += 1) {
+    const candidates = rawMatrix[rowNumber].map((value) => text(value) ?? "");
+    const mIndex = candidates.indexOf("Match_ID");
+    const fIndex = candidates.indexOf("Fecha");
+    if (mIndex !== -1 && fIndex !== -1) {
+      headerRowNumber = rowNumber;
+      matchIdIndex = mIndex;
+      fechaIndex = fIndex;
+      break;
+    }
+  }
+  if (headerRowNumber === -1) return result;
+
+  for (let rowNumber = headerRowNumber + 1; rowNumber < rawMatrix.length; rowNumber += 1) {
+    const matchId = text(rawMatrix[rowNumber]?.[matchIdIndex]);
+    const formattedFecha = formattedMatrix[rowNumber]?.[fechaIndex];
+    if (matchId && formattedFecha != null) result.set(matchId, String(formattedFecha));
   }
   return result;
 }
@@ -514,9 +556,18 @@ export async function parseExcelWorkbook(input: Buffer, filename: string): Promi
       if (!parsed.success) warnings.push(`Game rule row ${index + 1}: ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
       return row;
     });
+  const fechaByMatchId = matchFechaDisplayMap(workbook);
   const horaByMatchId = matchHoraDisplayMap(workbook);
   for (const match of matches) {
+    const displayFecha = fechaByMatchId.get(match.matchId);
+    if (displayFecha) {
+      const parsed = parseDisplayFecha(displayFecha);
+      if (parsed) match.fecha = parsed;
+    }
     match.hora = normalizeHora(horaByMatchId.get(match.matchId) ?? match.hora);
+    if (match.fecha && match.hora) {
+      match.kickoffTime = getMatchKickoffUtc(match.fecha, match.hora);
+    }
   }
 
   const participantIdsParsed = new Set(participants.map((participant) => participant.participantId));

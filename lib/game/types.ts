@@ -134,9 +134,15 @@ export type RankingInput = {
   pointsBonus?: number;
   previousPos?: number | null;
   previousPoints?: number | null;
+  campeonOk?: boolean;
+  subcampeonOk?: boolean;
+  semifinalistasOk?: number;
+  exactScores?: number;
+  correctDiffs?: number;
+  correctSigns?: number;
 };
 
-export type RankingRow = Required<Omit<RankingInput, "previousPos" | "previousPoints">> & {
+export type RankingRow = Required<Omit<RankingInput, "previousPos" | "previousPoints" | "campeonOk" | "subcampeonOk" | "semifinalistasOk" | "exactScores" | "correctDiffs" | "correctSigns">> & {
   pos: number;
   pointsTotal: number;
   deltaPos: number;

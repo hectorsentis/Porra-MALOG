@@ -258,6 +258,13 @@ export async function clearTestResultsAction() {
   redirect("/admin/resultados?cleared=1");
 }
 
+export async function forceRecalculateAction() {
+  await requireAdmin();
+  await recalculateAll(prisma, { trigger: "manual", eventLabel: "Recalculo manual desde admin", createdBy: "admin" });
+  revalidatePath("/clasificacion");
+  redirect("/admin?recalculated=1");
+}
+
 export async function saveBoteAction(formData: FormData) {
   await requireAdmin();
   await prisma.boteConfig.upsert({

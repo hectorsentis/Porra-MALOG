@@ -1,6 +1,7 @@
 ﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry, formatCountryOrNull } from "@/lib/countries";
+import { isGroupPhase } from "@/lib/game/scoreMatch";
 import { predictionSign } from "./matchStats";
 
 function statusLabel(status: string) {
@@ -123,10 +124,10 @@ export async function getPublicParticipantBets(participantId: string): Promise<P
         statusLabel: statusLabel(match.status),
         prediction: bet.predHomeGoals == null || bet.predAwayGoals == null ? "-" : `${bet.predHomeGoals}-${bet.predAwayGoals}`,
         predSign: predictionSign(bet.predHomeGoals, bet.predAwayGoals),
-        predQualifiedTeamId: formatCountryOrNull(bet.predQualifiedTeamId, bet.predQualifiedTeamId),
+        predQualifiedTeamId: isGroupPhase(match.fase) ? null : formatCountryOrNull(bet.predQualifiedTeamId, bet.predQualifiedTeamId),
         resultText: isOfficial ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
         realSign: isOfficial ? predictionSign(match.homeGoals, match.awayGoals) : "Pendiente",
-        qualifiedTeamId: isOfficial ? formatCountryOrNull(match.overrideQualifiedTeamId ?? match.qualifiedTeamId, match.overrideQualifiedTeamId ?? match.qualifiedTeamId) : null,
+        qualifiedTeamId: isOfficial && !isGroupPhase(match.fase) ? formatCountryOrNull(match.overrideQualifiedTeamId ?? match.qualifiedTeamId, match.overrideQualifiedTeamId ?? match.qualifiedTeamId) : null,
         score: score
           ? {
               exactOk: score.exactOk,

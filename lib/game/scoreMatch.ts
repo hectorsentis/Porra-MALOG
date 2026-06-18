@@ -17,7 +17,7 @@ function sameTeam(left?: string | null, right?: string | null): boolean {
   return Boolean(left && right && left.trim().toUpperCase() === right.trim().toUpperCase());
 }
 
-function isGroupPhase(fase?: string | null): boolean {
+export function isGroupPhase(fase?: string | null): boolean {
   return (fase ?? "").toLocaleUpperCase("es-ES").includes("GRUPO");
 }
 

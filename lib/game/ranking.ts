@@ -9,12 +9,21 @@ export function calculateRanking(rows: RankingInput[]): RankingRow[] {
     .sort((left, right) => {
       const totalDiff = total(right) - total(left);
       if (totalDiff !== 0) return totalDiff;
-      const matchDiff = (right.pointsMatches ?? 0) - (left.pointsMatches ?? 0);
-      if (matchDiff !== 0) return matchDiff;
-      const groupDiff = (right.pointsGroups ?? 0) - (left.pointsGroups ?? 0);
-      if (groupDiff !== 0) return groupDiff;
       const bonusDiff = (right.pointsBonus ?? 0) - (left.pointsBonus ?? 0);
       if (bonusDiff !== 0) return bonusDiff;
+      const campeonDiff = (right.campeonOk ? 1 : 0) - (left.campeonOk ? 1 : 0);
+      if (campeonDiff !== 0) return campeonDiff;
+      const podiumDiff = ((right.subcampeonOk ? 1 : 0) + (right.semifinalistasOk ?? 0))
+                       - ((left.subcampeonOk ? 1 : 0) + (left.semifinalistasOk ?? 0));
+      if (podiumDiff !== 0) return podiumDiff;
+      const koDiff = (right.pointsEliminatorias ?? 0) - (left.pointsEliminatorias ?? 0);
+      if (koDiff !== 0) return koDiff;
+      const exactDiff = (right.exactScores ?? 0) - (left.exactScores ?? 0);
+      if (exactDiff !== 0) return exactDiff;
+      const diffDiff = (right.correctDiffs ?? 0) - (left.correctDiffs ?? 0);
+      if (diffDiff !== 0) return diffDiff;
+      const signDiff = (right.correctSigns ?? 0) - (left.correctSigns ?? 0);
+      if (signDiff !== 0) return signDiff;
       return left.alias.localeCompare(right.alias, "es");
     })
     .map((row, index) => {

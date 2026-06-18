@@ -196,10 +196,12 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
         )
       : [];
     const pointsBonusByParticipant = new Map(bonusScores.map((score) => [score.participantId, score.pointsTotal]));
+    const bonusByParticipant = new Map(bonusScores.map((score) => [score.participantId, score]));
 
     const ranking = calculateRanking(
       participants.map((participant) => {
         const prev = previousByParticipant.get(participant.participantId);
+        const bonus = bonusByParticipant.get(participant.participantId);
         return {
           participantId: participant.participantId,
           alias: participant.alias,
@@ -210,7 +212,13 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
           pointsEliminatorias: pointsKoByParticipant.get(participant.participantId) ?? 0,
           pointsBonus: pointsBonusByParticipant.get(participant.participantId) ?? 0,
           previousPos: prev?.pos,
-          previousPoints: prev?.pointsTotal
+          previousPoints: prev?.pointsTotal,
+          campeonOk: bonus?.campeonOk ?? false,
+          subcampeonOk: bonus?.subcampeonOk ?? false,
+          semifinalistasOk: bonus?.semifinalistasOk ?? 0,
+          exactScores: exactScoresByParticipant.get(participant.participantId) ?? 0,
+          correctDiffs: correctDiffByParticipant.get(participant.participantId) ?? 0,
+          correctSigns: correctSignsByParticipant.get(participant.participantId) ?? 0
         };
       })
     );
@@ -376,46 +384,52 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
       await tx.generalRanking.createMany({
         data: rankingRows as unknown as NonNullable<Parameters<typeof tx.generalRanking.createMany>[0]>["data"]
       });
-      await tx.rankingSnapshot.updateMany({ where: { isLatest: true }, data: { isLatest: false } });
-      const snapshot = await tx.rankingSnapshot.create({
-        data: {
-          label: eventLabel,
-          source: "engine",
-          isLatest: true,
-          eventLabel,
-          matchId: eventMatch?.matchId,
-          phase: eventMatch?.fase,
-          matchday: eventMatch?.jornadaId,
-          recalculationRunId: run.id
-        }
+      const rankingChanged = ranking.some((row) => {
+        const prev = previousByParticipant.get(row.participantId);
+        return !prev || prev.pos !== row.pos || prev.pointsTotal !== row.pointsTotal;
       });
-      const snapshotRows = ranking.map((row) => {
-        const previousRow = previousByParticipant.get(row.participantId);
-        const pointsGainedThisRun = previousRow == null ? row.pointsTotal : row.pointsTotal - previousRow.pointsTotal;
-        return {
-          snapshotId: snapshot.id,
-          participantId: row.participantId,
-          alias: row.alias,
-          departamento: row.departamento,
-          rango: row.rango,
-          pos: row.pos,
-          previousPos: previousRow?.pos,
-          deltaPos: row.deltaPos,
-          deltaPoints: row.deltaPoints,
-          pointsMatches: row.pointsMatches,
-          pointsGroups: row.pointsGroups,
-          pointsEliminatorias: row.pointsEliminatorias,
-          pointsBonus: row.pointsBonus,
-          pointsTotal: row.pointsTotal,
-          pointsGainedThisRun,
-          eventLabel,
-          phase: eventMatch?.fase,
-          matchday: eventMatch?.jornadaId,
-          matchId: eventMatch?.matchId
-        };
-      });
-      await tx.rankingSnapshotRow.createMany({ data: snapshotRows });
-      await tx.participantScoreSnapshot.createMany({ data: snapshotRows });
+      if (rankingChanged || previous.length === 0) {
+        await tx.rankingSnapshot.updateMany({ where: { isLatest: true }, data: { isLatest: false } });
+        const snapshot = await tx.rankingSnapshot.create({
+          data: {
+            label: eventLabel,
+            source: "engine",
+            isLatest: true,
+            eventLabel,
+            matchId: eventMatch?.matchId,
+            phase: eventMatch?.fase,
+            matchday: eventMatch?.jornadaId,
+            recalculationRunId: run.id
+          }
+        });
+        const snapshotRows = ranking.map((row) => {
+          const previousRow = previousByParticipant.get(row.participantId);
+          const pointsGainedThisRun = previousRow == null ? row.pointsTotal : row.pointsTotal - previousRow.pointsTotal;
+          return {
+            snapshotId: snapshot.id,
+            participantId: row.participantId,
+            alias: row.alias,
+            departamento: row.departamento,
+            rango: row.rango,
+            pos: row.pos,
+            previousPos: previousRow?.pos,
+            deltaPos: row.deltaPos,
+            deltaPoints: row.deltaPoints,
+            pointsMatches: row.pointsMatches,
+            pointsGroups: row.pointsGroups,
+            pointsEliminatorias: row.pointsEliminatorias,
+            pointsBonus: row.pointsBonus,
+            pointsTotal: row.pointsTotal,
+            pointsGainedThisRun,
+            eventLabel,
+            phase: eventMatch?.fase,
+            matchday: eventMatch?.jornadaId,
+            matchId: eventMatch?.matchId
+          };
+        });
+        await tx.rankingSnapshotRow.createMany({ data: snapshotRows });
+        await tx.participantScoreSnapshot.createMany({ data: snapshotRows });
+      }
       await tx.recalculationRun.update({
         where: { id: run.id },
         data: { status: "SUCCESS", finishedAt: new Date(), affectedParticipants: ranking.length }

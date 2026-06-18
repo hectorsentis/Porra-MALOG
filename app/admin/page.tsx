@@ -1,4 +1,4 @@
-import { loginAction } from "./actions";
+import { loginAction, forceRecalculateAction } from "./actions";
 import { verifyAdminSession } from "@/lib/admin/auth";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ error?: string; recalculated?: string }> }) {
   const params = await searchParams;
   const isAdmin = await verifyAdminSession();
   if (!isAdmin) {
@@ -53,6 +53,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <Card><CardContent><p className="text-xs uppercase text-slate-500">Partidos</p><p className="text-3xl font-bold">{stats.matches}</p></CardContent></Card>
         <Card><CardContent><p className="text-xs uppercase text-slate-500">Imports</p><p className="text-3xl font-bold">{stats.imports}</p></CardContent></Card>
       </div>
+      <Card className="mt-4">
+        <CardContent className="flex items-center gap-4">
+          <form action={forceRecalculateAction}>
+            <Button variant="secondary">Forzar recalculo de clasificacion</Button>
+          </form>
+          {params.recalculated ? <p className="text-sm text-air-up">Clasificacion recalculada correctamente.</p> : null}
+        </CardContent>
+      </Card>
     </AdminShell>
   );
 }

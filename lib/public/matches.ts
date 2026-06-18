@@ -1,6 +1,7 @@
 ﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry, formatCountryOrNull } from "@/lib/countries";
+import { isGroupPhase } from "@/lib/game/scoreMatch";
 import type { MatchStatus } from "@prisma/client";
 import type { PublicFilters } from "./filters";
 import { summarizePredictionDistribution } from "./matchStats";
@@ -182,7 +183,7 @@ export async function getPublicMatches(filters: PublicFilters = {}) {
         status: match.status,
         statusLabel: statusLabel(match.status),
         resultText: match.status === "OFFICIAL" || match.status === "DRAFT" ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
-        qualifiedTeamId: match.status === "OFFICIAL" || match.status === "DRAFT" ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null,
+        qualifiedTeamId: (match.status === "OFFICIAL" || match.status === "DRAFT") && !isGroupPhase(match.fase) ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null,
         pointsDistributed,
         exactScores,
         prediction,
@@ -228,7 +229,7 @@ export async function getPublicMatchDetail(matchId: string) {
       status: match.status,
       statusLabel: statusLabel(match.status),
       resultText: match.status === "OFFICIAL" || match.status === "DRAFT" ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
-      qualifiedTeamId: match.status === "OFFICIAL" || match.status === "DRAFT" ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null
+      qualifiedTeamId: (match.status === "OFFICIAL" || match.status === "DRAFT") && !isGroupPhase(match.fase) ? formatCountryOrNull(match.qualifiedTeamId ?? match.overrideQualifiedTeamId, match.qualifiedTeamId ?? match.overrideQualifiedTeamId) : null
     },
     prediction,
     pedometer,
