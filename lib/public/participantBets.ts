@@ -25,6 +25,8 @@ export type ParticipantMatchBet = {
   statusLabel: string;
   prediction: string;
   predSign: string;
+  predHomeTeam: string | null;
+  predAwayTeam: string | null;
   predQualifiedTeamId: string | null;
   resultText: string | null;
   realSign: string;
@@ -129,6 +131,8 @@ export async function getPublicParticipantBets(participantId: string): Promise<P
         statusLabel: statusLabel(match.status),
         prediction: bet.predHomeGoals == null || bet.predAwayGoals == null ? "-" : `${bet.predHomeGoals}-${bet.predAwayGoals}`,
         predSign: predictionSign(bet.predHomeGoals, bet.predAwayGoals),
+        predHomeTeam: isGroupPhase(match.fase) ? null : formatCountryOrNull(bet.predHomeTeamId, bet.predHomeTeamId),
+        predAwayTeam: isGroupPhase(match.fase) ? null : formatCountryOrNull(bet.predAwayTeamId, bet.predAwayTeamId),
         predQualifiedTeamId: isGroupPhase(match.fase) ? null : formatCountryOrNull(bet.predQualifiedTeamId, bet.predQualifiedTeamId),
         resultText: isOfficial ? match.resultText ?? (match.homeGoals != null && match.awayGoals != null ? `${match.homeGoals}-${match.awayGoals}` : null) : null,
         realSign: isOfficial ? predictionSign(match.homeGoals, match.awayGoals) : "Pendiente",

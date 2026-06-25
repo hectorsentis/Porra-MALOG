@@ -267,10 +267,11 @@ export default async function ParticipantePage({ params }: { params: Promise<{ s
         <Card className="mt-4">
           <CardHeader><CardTitle>Eliminatorias - Quien clasifica ({koMatches.length})</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[660px] text-sm">
+            <table className="w-full min-w-[860px] text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-3 py-2">Cruce</th>
+                  <th className="px-3 py-2">Cruce apostado</th>
+                  <th className="px-3 py-2">Cruce real</th>
                   <th className="px-3 py-2">Estado</th>
                   <th className="px-3 py-2">Apuesta: pasa</th>
                   <th className="px-3 py-2">Resultado: pasa</th>
@@ -281,36 +282,59 @@ export default async function ParticipantePage({ params }: { params: Promise<{ s
                 {koSections.map((section) => (
                   <Fragment key={`ko-${section.fase}`}>
                     <tr className="border-t border-slate-100 bg-slate-50">
-                      <td colSpan={5} className="px-3 py-2"><PhaseBadge fase={section.fase} /></td>
+                      <td colSpan={6} className="px-3 py-2"><PhaseBadge fase={section.fase} /></td>
                     </tr>
-                    {section.rows.map((bet) => (
-                      <tr key={bet.matchId} className="border-t border-slate-100">
-                        <td className="px-3 py-2">
-                          <p className="font-semibold"><CountryLabel value={bet.homeTeam} /> - <CountryLabel value={bet.awayTeam} /></p>
-                          <p className="text-xs text-slate-500">
-                            {bet.fecha ? new Date(bet.fecha).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" }) : "Fecha por confirmar"} {bet.hora ?? ""}
-                          </p>
-                        </td>
-                        <td className="px-3 py-2"><Badge className={statusClass(bet.status)}>{bet.statusLabel}</Badge></td>
-                        <td className="px-3 py-2">
-                          {bet.predQualifiedTeamId ? (
-                            <p className="font-bold"><CountryLabel value={bet.predQualifiedTeamId} /></p>
-                          ) : (
-                            <span className="text-sm text-slate-500">-</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2">
-                          {bet.qualifiedTeamId ? (
-                            <p className="font-bold"><CountryLabel value={bet.qualifiedTeamId} /></p>
-                          ) : bet.resultText ? (
-                            <span className="text-sm text-slate-500">Pendiente</span>
-                          ) : (
-                            <span className="text-sm text-slate-500">-</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2"><MatchPointsCell bet={bet} /></td>
-                      </tr>
-                    ))}
+                    {section.rows.map((bet) => {
+                      const koTags: string[] = [];
+                      if (bet.score) {
+                        if (bet.score.qualifiedOk) koTags.push("Pasa");
+                        if (bet.score.cruceExactoOk) koTags.push("Cruce exacto");
+                      }
+                      return (
+                        <tr key={bet.matchId} className="border-t border-slate-100">
+                          <td className="px-3 py-2">
+                            {bet.predHomeTeam && bet.predAwayTeam ? (
+                              <p className="font-semibold"><CountryLabel value={bet.predHomeTeam} /> - <CountryLabel value={bet.predAwayTeam} /></p>
+                            ) : (
+                              <span className="text-sm text-slate-500">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            <p className="font-semibold"><CountryLabel value={bet.homeTeam} /> - <CountryLabel value={bet.awayTeam} /></p>
+                            <p className="text-xs text-slate-500">
+                              {bet.fecha ? new Date(bet.fecha).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" }) : "Fecha por confirmar"} {bet.hora ?? ""}
+                            </p>
+                          </td>
+                          <td className="px-3 py-2"><Badge className={statusClass(bet.status)}>{bet.statusLabel}</Badge></td>
+                          <td className="px-3 py-2">
+                            {bet.predQualifiedTeamId ? (
+                              <p className="font-bold"><CountryLabel value={bet.predQualifiedTeamId} /></p>
+                            ) : (
+                              <span className="text-sm text-slate-500">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {bet.qualifiedTeamId ? (
+                              <p className="font-bold"><CountryLabel value={bet.qualifiedTeamId} /></p>
+                            ) : bet.resultText ? (
+                              <span className="text-sm text-slate-500">Pendiente</span>
+                            ) : (
+                              <span className="text-sm text-slate-500">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {bet.status !== "OFFICIAL" || !bet.score ? (
+                              <span className="text-sm text-slate-500">Pendiente</span>
+                            ) : (
+                              <div>
+                                <p className="text-lg font-bold">{bet.score.pointsTotal}</p>
+                                {koTags.length > 0 && <p className="text-xs text-air-up">{koTags.join(" + ")}</p>}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </Fragment>
                 ))}
               </tbody>
