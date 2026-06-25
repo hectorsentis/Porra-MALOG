@@ -1,6 +1,6 @@
-﻿import Image from "next/image";
 import Link from "next/link";
 import { BarChart3, CalendarClock, Gauge, MessageSquareText, Trophy, Users } from "lucide-react";
+import { OfficialBrandLogo } from "@/components/shell/OfficialBrandLogo";
 import { Badge } from "@/components/ui/badge";
 
 const nav = [
@@ -24,11 +24,15 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-air-page">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-air-dark text-[#FFFFFF]">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/" className="flex min-w-0 items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-[#FFFFFF] p-1.5 shadow-card"><Image src="/assets/official-logo.svg" alt="Logo PORRA MUNDIAL 2026 MALOG" width={40} height={40} className="h-full w-full object-contain" priority /></span>
+          <Link
+            href="/"
+            aria-label="Ir al inicio de PORRA MUNDIAL 2026 MALOG"
+            className="flex min-w-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-air-gold focus-visible:ring-offset-2 focus-visible:ring-offset-air-dark sm:gap-3"
+          >
+            <OfficialBrandLogo priority />
             <div className="min-w-0">
-              <p className="truncate font-display text-base font-bold uppercase tracking-wide text-[#FFFFFF]">PORRA MUNDIAL 2026 MALOG</p>
-              <p className="text-xs text-blue-100">Ejercito del Aire - seguimiento oficial</p>
+              <p className="truncate font-display text-sm font-bold uppercase tracking-wide text-[#FFFFFF] sm:text-base">PORRA MUNDIAL 2026 MALOG</p>
+              <p className="hidden truncate text-xs text-blue-100 sm:block">Ejército del Aire y del Espacio · seguimiento oficial</p>
             </div>
           </Link>
           <Badge className="hidden border-air-gold bg-[var(--bg-elevated)] text-air-gold sm:inline-flex">

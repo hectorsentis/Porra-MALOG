@@ -110,19 +110,3 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-.loading-reticle {
-  display: inline-grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 9999px;
-  border: 2px solid var(--border-accent);
-  border-top-color: transparent;
-  animation: loading-spin 0.9s linear infinite;
-}
-
-@keyframes loading-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}

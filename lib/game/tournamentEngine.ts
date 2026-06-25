@@ -362,8 +362,7 @@ export function computeTournamentState(matches: TournamentMatch[], teams: Tourna
       const homeTeamId = match.homeTeamIdManual ?? resolveSlotTeam(match.homeSlot, match.awaySlot, slotTeamByCode, matchesById, combo);
       const awayTeamId = match.awayTeamIdManual ?? resolveSlotTeam(match.awaySlot, match.homeSlot, slotTeamByCode, matchesById, combo);
       return { matchId: match.matchId, homeTeamId, awayTeamId };
-    })
-    .filter((update) => update.homeTeamId || update.awayTeamId);
+    });
 
   const thirdPlaces = thirdRows.map((row, index) => ({
     grupo: row.grupo,
@@ -466,10 +465,10 @@ export async function recalculateTournamentEngine(prisma: PrismaClient) {
       await tx.match.update({
         where: { matchId: update.matchId },
         data: {
-          homeTeamId: update.homeTeamId ?? current.homeTeamId,
-          awayTeamId: update.awayTeamId ?? current.awayTeamId,
-          homeTeam: home?.seleccion ?? current.homeTeam,
-          awayTeam: away?.seleccion ?? current.awayTeam
+          homeTeamId: update.homeTeamId ?? null,
+          awayTeamId: update.awayTeamId ?? null,
+          homeTeam: update.homeTeamId ? (home?.seleccion ?? current.homeTeam) : null,
+          awayTeam: update.awayTeamId ? (away?.seleccion ?? current.awayTeam) : null
         }
       });
     }

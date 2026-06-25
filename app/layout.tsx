@@ -9,7 +9,17 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jet
 
 export const metadata: Metadata = {
   title: "PORRA MUNDIAL 2026 MALOG",
-  description: "Dashboard publico de la PORRA MUNDIAL 2026 MALOG"
+  description: "Dashboard público de la PORRA MUNDIAL 2026 MALOG",
+  applicationName: "PORRA MUNDIAL 2026 MALOG",
+  icons: {
+    icon: [
+      {
+        url: "/assets/favicon-rokiski-mundial-2026.svg",
+        type: "image/svg+xml",
+      },
+    ],
+    shortcut: "/assets/favicon-rokiski-mundial-2026.svg",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
