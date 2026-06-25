@@ -83,7 +83,8 @@ export function ClassificationTable({
         header: "% acierto",
         cell: ({ row }) => `${Math.round(row.original.pctAcierto * 100)}%`
       },
-      { accessorKey: "pointsMatches", header: "Pts grupos" },
+      { accessorKey: "pointsMatches", header: "Pts partidos" },
+      { accessorKey: "pointsGroups", header: "Pts clasif." },
       { accessorKey: "pointsEliminatorias", header: "Pts elim." },
       {
         id: "lastMatch",

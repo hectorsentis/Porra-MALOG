@@ -155,11 +155,8 @@ describe("scoreGroupBet random standings", () => {
       const standing = standings.find((item) => item.teamId === predTeamId)!;
       expect(score.realPos).toBe(standing.pos);
       expect(score.exactPositionOk).toBe(standing.pos === predPos);
-      // default qualification rule: top-2 of the group qualify
-      expect(score.qualifiedOk).toBe(standing.pos <= 2);
-      if (score.exactPositionOk && predPos <= 2) {
-        expect(score.qualifiedOk).toBe(true);
-      }
+      // qualifiedOk requires team qualified AND player predicted a qualifying position
+      expect(score.qualifiedOk).toBe(standing.pos <= 2 && predPos <= 2);
     }
   });
 });

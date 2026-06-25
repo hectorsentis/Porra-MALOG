@@ -161,6 +161,55 @@ describe("scoreGroups", () => {
     expect(score.qualifiedOk).toBe(true);
     expect(score.exactPositionOk).toBe(false);
   });
+
+  it("does not award qualifiedOk when predicted pos 4 but team qualifies", () => {
+    const score = scoreGroupBet(
+      { participantId: "P1", grupo: "A", predPos: 4, predTeamId: "ZAF" },
+      [{ grupo: "A", teamId: "ZAF", pos: 2, status: "clasificado" }]
+    );
+
+    expect(score.qualifiedOk).toBe(false);
+    expect(score.exactPositionOk).toBe(false);
+    expect(score.pointsTotal).toBe(0);
+  });
+
+  it("does not award qualifiedOk when predicted pos 3 without knockout bracket", () => {
+    const score = scoreGroupBet(
+      { participantId: "P1", grupo: "A", predPos: 3, predTeamId: "MEX" },
+      [{ grupo: "A", teamId: "MEX", pos: 1, status: "clasificado" }]
+    );
+
+    expect(score.qualifiedOk).toBe(false);
+    expect(score.pointsTotal).toBe(0);
+  });
+
+  it("awards qualifiedOk when predicted pos 3 and team is in knockout bracket", () => {
+    const koTeams = new Set(["MEX"]);
+    const score = scoreGroupBet(
+      { participantId: "P1", grupo: "A", predPos: 3, predTeamId: "MEX" },
+      [{ grupo: "A", teamId: "MEX", pos: 1, status: "clasificado" }],
+      defaultRules,
+      koTeams
+    );
+
+    expect(score.qualifiedOk).toBe(true);
+    expect(score.exactPositionOk).toBe(false);
+    expect(score.pointsTotal).toBe(defaultRules.groupQualified);
+  });
+
+  it("does not award qualifiedOk for pos 3 in bracket when team did not qualify", () => {
+    const koTeams = new Set(["ARG"]);
+    const score = scoreGroupBet(
+      { participantId: "P1", grupo: "A", predPos: 3, predTeamId: "ARG" },
+      [{ grupo: "A", teamId: "ARG", pos: 3, status: "out" }],
+      defaultRules,
+      koTeams
+    );
+
+    expect(score.qualifiedOk).toBe(false);
+    expect(score.exactPositionOk).toBe(true);
+    expect(score.pointsTotal).toBe(defaultRules.groupExactPosition);
+  });
 });
 
 describe("computeGroupStandings", () => {

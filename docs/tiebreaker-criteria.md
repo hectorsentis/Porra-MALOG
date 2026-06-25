@@ -56,8 +56,21 @@ cada nueva jornada/fase. Cuando se procesa el primer resultado oficial de la
 jornada N+1, el motor guarda el estado de la clasificacion al final de la
 jornada N como "Inicio de fase JN+1".
 
+## Puntuacion clasificacion de grupos
+
+- **Equipo clasificado (3pts)**: Solo se otorga si el jugador predijo que el
+  equipo clasificaria. Poner un equipo en posicion 1 o 2 implica "clasifica".
+  Posicion 3 solo cuenta si el equipo acaba 3o y clasifica como mejor tercero.
+  Posicion 4 nunca otorga puntos de "clasifica".
+- **Posicion exacta (2pts)**: Se otorga si la posicion pronosticada coincide
+  con la posicion real, independientemente de si el equipo clasifico.
+- **Mejores terceros**: Los puntos de "clasifica" para terceros solo se
+  otorgan cuando TODOS los grupos han terminado y se conoce la clasificacion
+  final de mejores terceros.
+
 ## Implementacion
 
 - Logica de ordenacion: `lib/game/ranking.ts` (`calculateRanking`)
+- Scoring de grupos: `lib/game/scoreGroups.ts` (`scoreGroupBet`)
 - Tipos: `lib/game/types.ts` (`RankingInput`)
 - Calculo y paso de datos: `lib/game/recalculateAll.ts`

@@ -14,7 +14,8 @@ function isQualified(standing?: GroupStandingInput): boolean {
 export function scoreGroupBet(
   bet: GroupBetInput,
   standings: GroupStandingInput[],
-  rules: GameRules = defaultRules
+  rules: GameRules = defaultRules,
+  koTeamIds?: Set<string>
 ): GroupScore {
   const standing = standings.find(
     (item) =>
@@ -22,7 +23,10 @@ export function scoreGroupBet(
       item.teamId.trim().toUpperCase() === bet.predTeamId?.trim().toUpperCase()
   );
   const valid = bet.valid !== false && Boolean(bet.predTeamId);
-  const qualifiedOk = valid && isQualified(standing);
+  const teamQualified = isQualified(standing);
+  const inKoBracket = Boolean(bet.predTeamId && koTeamIds?.has(bet.predTeamId.trim().toUpperCase()));
+  const playerPredictedQualifies = bet.predPos <= 2 || inKoBracket;
+  const qualifiedOk = valid && teamQualified && playerPredictedQualifies;
   const exactPositionOk = valid && Boolean(standing && standing.pos === bet.predPos);
   const pointsQualified = qualifiedOk ? rules.groupQualified : 0;
   const pointsPosition = exactPositionOk ? rules.groupExactPosition : 0;
@@ -46,7 +50,8 @@ export function scoreGroupBet(
 export function scoreGroups(
   bets: GroupBetInput[],
   standings: GroupStandingInput[],
-  rules: GameRules = defaultRules
+  rules: GameRules = defaultRules,
+  koTeamIdsByParticipant?: Map<string, Set<string>>
 ): GroupScore[] {
-  return bets.map((bet) => scoreGroupBet(bet, standings, rules));
+  return bets.map((bet) => scoreGroupBet(bet, standings, rules, koTeamIdsByParticipant?.get(bet.participantId)));
 }

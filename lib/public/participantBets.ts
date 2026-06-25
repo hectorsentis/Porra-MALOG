@@ -45,6 +45,10 @@ export type ParticipantGroupBet = {
   grupo: string;
   predPos: number;
   predTeamId: string | null;
+  realPos: number | null;
+  qualifiedOk: boolean;
+  exactPositionOk: boolean;
+  pointsTotal: number;
 };
 
 export type ParticipantBonusBet = {
@@ -69,7 +73,7 @@ export type ParticipantBetsData = {
 
 export async function getPublicParticipantBets(participantId: string): Promise<ParticipantBetsData> {
 
-  const [matchBets, scoringMatches, groupBets, bonusBet] = await Promise.all([
+  const [matchBets, scoringMatches, groupBets, scoringGroups, bonusBet] = await Promise.all([
     prisma.betMatch.findMany({
       where: { participantId },
       include: {
@@ -100,6 +104,7 @@ export async function getPublicParticipantBets(participantId: string): Promise<P
     }),
     prisma.scoringMatch.findMany({ where: { participantId } }),
     prisma.betGroupPosition.findMany({ where: { participantId, valid: true } }),
+    prisma.scoringGroup.findMany({ where: { participantId } }),
     prisma.betBonus.findUnique({ where: { participantId } })
   ]);
 
@@ -149,8 +154,22 @@ export async function getPublicParticipantBets(participantId: string): Promise<P
       return (a.matchNo ?? 0) - (b.matchNo ?? 0);
     });
 
+  const scoringGroupKey = (grupo: string, predPos: number) => `${grupo}:${predPos}`;
+  const scoringGroupMap = new Map(scoringGroups.map((s) => [scoringGroupKey(s.grupo, s.predPos), s]));
+
   const groups: ParticipantGroupBet[] = groupBets
-    .map((bet) => ({ grupo: bet.grupo, predPos: bet.predPos, predTeamId: formatCountry(bet.predTeamId, bet.predTeamId) }))
+    .map((bet) => {
+      const scoring = scoringGroupMap.get(scoringGroupKey(bet.grupo, bet.predPos));
+      return {
+        grupo: bet.grupo,
+        predPos: bet.predPos,
+        predTeamId: formatCountry(bet.predTeamId, bet.predTeamId),
+        realPos: scoring?.realPos ?? null,
+        qualifiedOk: scoring?.qualifiedOk ?? false,
+        exactPositionOk: scoring?.exactPositionOk ?? false,
+        pointsTotal: scoring?.pointsTotal ?? 0
+      };
+    })
     .sort((a, b) => a.grupo.localeCompare(b.grupo, "es-ES") || a.predPos - b.predPos);
 
   const bonus: ParticipantBonusBet | null = bonusBet

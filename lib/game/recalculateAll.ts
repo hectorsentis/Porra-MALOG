@@ -18,6 +18,7 @@ export type RecalculateAllOptions = {
   matchId?: string | null;
   eventLabel?: string | null;
   createdBy?: string | null;
+  skipSnapshot?: boolean;
 };
 
 export function phaseGroupOf(fase: string | null | undefined, jornadaId: string | null | undefined): string | null {
@@ -151,6 +152,17 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
       pos: row.pos,
       status: row.qualified ? "clasificado" : "out"
     }));
+    const koTeamIdsByParticipant = new Map<string, Set<string>>();
+    for (const bet of bets) {
+      const match = matchById.get(bet.matchId);
+      if (!match || (match.fase ?? "").toLocaleUpperCase("es-ES").includes("GRUPO")) continue;
+      let teamSet = koTeamIdsByParticipant.get(bet.participantId);
+      if (!teamSet) { teamSet = new Set(); koTeamIdsByParticipant.set(bet.participantId, teamSet); }
+      if (bet.predHomeTeamId) teamSet.add(bet.predHomeTeamId.trim().toUpperCase());
+      if (bet.predAwayTeamId) teamSet.add(bet.predAwayTeamId.trim().toUpperCase());
+      if (bet.predQualifiedTeamId) teamSet.add(bet.predQualifiedTeamId.trim().toUpperCase());
+    }
+
     const groupScores = scoreGroups(
       groupBets.map((bet) => ({
         groupBetId: bet.groupBetId,
@@ -161,7 +173,8 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
         valid: bet.valid
       })),
       standingInputs,
-      rules
+      rules,
+      koTeamIdsByParticipant
     );
 
     const pointsGroupsByParticipant = new Map<string, number>();
@@ -229,7 +242,9 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
             (row) => [row.participantId, row.pos] as const
           )
         )
-      : null;
+      : lastPhaseSnapshot
+        ? new Map(lastPhaseSnapshot.rows.map((row) => [row.participantId, row.pos] as const))
+        : null;
     const dayBaseline = new Map((lastDaySnapshot ? lastDaySnapshot.rows : previous).map((row) => [row.participantId, row.pos] as const));
 
     const deltaPosPhaseByParticipant = new Map<string, number | null>();
@@ -388,7 +403,7 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
         const prev = previousByParticipant.get(row.participantId);
         return !prev || prev.pos !== row.pos || prev.pointsTotal !== row.pointsTotal;
       });
-      if (rankingChanged || previous.length === 0) {
+      if (!options.skipSnapshot && (rankingChanged || previous.length === 0)) {
         await tx.rankingSnapshot.updateMany({ where: { isLatest: true }, data: { isLatest: false } });
         const snapshot = await tx.rankingSnapshot.create({
           data: {
