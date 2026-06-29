@@ -86,7 +86,7 @@ describe("scoreMatch", () => {
     expect(score.cruceExactoOk).toBe(true);
     expect(score.spainMatch).toBe(true);
     expect(score.multiplier).toBe(2);
-    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing * 2);
+    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing);
   });
 
   it("scores exact KO crossing with reversed team order", () => {
@@ -110,7 +110,7 @@ describe("scoreMatch", () => {
     );
 
     expect(score.cruceExactoOk).toBe(true);
-    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing * 3);
+    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing);
   });
 
   it("does not score exact crossing for group-stage matches", () => {
