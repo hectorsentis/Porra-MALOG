@@ -55,7 +55,8 @@ function isSpainMatch(result: MatchResultInput): boolean {
 export function scoreMatch(
   bet: MatchBetInput,
   result: MatchResultInput,
-  rules: GameRules = defaultRules
+  rules: GameRules = defaultRules,
+  phaseQualifiers?: Set<string>
 ): MatchScore {
   const predSign = getSign(bet.predHomeGoals, bet.predAwayGoals);
   const predGoalDiff = getGoalDiff(bet.predHomeGoals, bet.predAwayGoals);
@@ -68,12 +69,14 @@ export function scoreMatch(
   const exactOk = groupPhase && finished && bet.predHomeGoals === result.homeGoals && bet.predAwayGoals === result.awayGoals;
   const diffOk = groupPhase && finished && predGoalDiff != null && predGoalDiff === realGoalDiff;
   const signOk = groupPhase && finished && predSign != null && predSign === realSign;
+  const predQualUpper = bet.predQualifiedTeamId?.trim().toUpperCase();
   const qualifiedOk = Boolean(
     koPhase &&
       finished &&
-      bet.predQualifiedTeamId &&
-      result.qualifiedTeamId &&
-      sameTeam(bet.predQualifiedTeamId, result.qualifiedTeamId)
+      predQualUpper &&
+      (phaseQualifiers
+        ? phaseQualifiers.has(predQualUpper)
+        : result.qualifiedTeamId && sameTeam(bet.predQualifiedTeamId, result.qualifiedTeamId))
   );
   const cruceExactoOk = Boolean(
     finished &&

@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { calculateRanking } from "./ranking";
-import { scoreMatch } from "./scoreMatch";
+import { scoreMatch, isGroupPhase } from "./scoreMatch";
 import { scoreGroups } from "./scoreGroups";
 import { computeGroupStandings } from "./groupStandings";
 import { getActiveGameRules } from "./ruleConfig";
@@ -95,10 +95,22 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
     const matchById = new Map(matches.map((match) => [match.matchId, match]));
     const previousByParticipant = new Map(previous.map((row) => [row.participantId, row]));
 
+    const qualifiersByPhase = new Map<string, Set<string>>();
+    for (const match of matches) {
+      if (!match.fase || isGroupPhase(match.fase)) continue;
+      const qTeam = (match.overrideQualifiedTeamId ?? match.qualifiedTeamId)?.trim().toUpperCase();
+      if (!qTeam || !isScorableMatch(match)) continue;
+      const faseKey = match.fase.trim().toUpperCase();
+      let set = qualifiersByPhase.get(faseKey);
+      if (!set) { set = new Set(); qualifiersByPhase.set(faseKey, set); }
+      set.add(qTeam);
+    }
+
     const scores = bets
       .map((bet) => {
         const match = matchById.get(bet.matchId);
         if (!match || !isScorableMatch(match)) return null;
+        const faseKey = (match.fase ?? bet.fase ?? "").trim().toUpperCase();
         return scoreMatch(
           {
             betId: bet.betId,
@@ -121,7 +133,8 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
             qualifiedTeamId: match.overrideQualifiedTeamId ?? match.qualifiedTeamId,
             finished: match.finished || (includeDraftMatches && match.status === "DRAFT")
           },
-          rules
+          rules,
+          qualifiersByPhase.get(faseKey)
         );
       })
       .filter((score): score is NonNullable<typeof score> => Boolean(score));
@@ -135,8 +148,8 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
     const correctSignsByParticipant = new Map<string, number>();
     const correctCrucesByParticipant = new Map<string, number>();
     for (const score of scores) {
-      const isGroupPhase = (score.fase ?? "").toLocaleUpperCase("es-ES").includes("GRUPO");
-      const target = isGroupPhase ? pointsMatchesByParticipant : pointsKoByParticipant;
+      const isGroup = isGroupPhase(score.fase);
+      const target = isGroup ? pointsMatchesByParticipant : pointsKoByParticipant;
       target.set(score.participantId, (target.get(score.participantId) ?? 0) + score.pointsTotal);
       if (score.exactOk) bump(exactScoresByParticipant, score.participantId);
       if (score.diffOk) bump(correctDiffByParticipant, score.participantId);
