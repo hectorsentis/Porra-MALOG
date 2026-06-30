@@ -138,6 +138,57 @@ describe("scoreMatch", () => {
     expect(score.cruceExactoOk).toBe(false);
     expect(score.pointsCruceExacto).toBe(0);
   });
+
+  it("awards qualifiedOk via phase-wide qualifiers even when the bet's own match has not been played", () => {
+    const phaseQualifiers = new Set(["CAN"]);
+    const score = scoreMatch(
+      {
+        participantId: "P1",
+        matchId: "M085",
+        fase: "R32",
+        predHomeTeamId: "CAN",
+        predAwayTeamId: "ECU",
+        predQualifiedTeamId: "CAN"
+      },
+      {
+        matchId: "M085",
+        fase: "R32",
+        homeTeamId: null,
+        awayTeamId: null,
+        homeGoals: null,
+        awayGoals: null,
+        finished: false
+      },
+      defaultRules,
+      phaseQualifiers
+    );
+
+    expect(score.qualifiedOk).toBe(true);
+    expect(score.pointsQualified).toBe(defaultRules.koR32Qualified);
+    expect(score.cruceExactoOk).toBe(false);
+  });
+
+  it("does not award qualifiedOk via phase-wide qualifiers when the predicted team did not qualify", () => {
+    const phaseQualifiers = new Set(["CAN"]);
+    const score = scoreMatch(
+      {
+        participantId: "P1",
+        matchId: "M085",
+        fase: "R32",
+        predQualifiedTeamId: "ECU"
+      },
+      {
+        matchId: "M085",
+        fase: "R32",
+        finished: false
+      },
+      defaultRules,
+      phaseQualifiers
+    );
+
+    expect(score.qualifiedOk).toBe(false);
+    expect(score.pointsQualified).toBe(0);
+  });
 });
 
 describe("scoreGroups", () => {

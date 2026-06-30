@@ -109,8 +109,16 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
     const scores = bets
       .map((bet) => {
         const match = matchById.get(bet.matchId);
-        if (!match || !isScorableMatch(match)) return null;
+        if (!match) return null;
         const faseKey = (match.fase ?? bet.fase ?? "").trim().toUpperCase();
+        const isGroup = isGroupPhase(match.fase);
+        const ownMatchScorable = isScorableMatch(match);
+        const phaseQualSet = isGroup ? undefined : qualifiersByPhase.get(faseKey);
+        // Group bets need their own match resolved. Knockout bets can still be scored
+        // for "pasa" (qualifiedOk) using phase-wide qualifiers even if the participant's
+        // own predicted matchup hasn't been played yet.
+        if (isGroup && !ownMatchScorable) return null;
+        if (!isGroup && !ownMatchScorable && !phaseQualSet) return null;
         return scoreMatch(
           {
             betId: bet.betId,
@@ -131,10 +139,10 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
             homeGoals: match.homeGoals,
             awayGoals: match.awayGoals,
             qualifiedTeamId: match.overrideQualifiedTeamId ?? match.qualifiedTeamId,
-            finished: match.finished || (includeDraftMatches && match.status === "DRAFT")
+            finished: ownMatchScorable && (match.finished || (includeDraftMatches && match.status === "DRAFT"))
           },
           rules,
-          qualifiersByPhase.get(faseKey)
+          phaseQualSet
         );
       })
       .filter((score): score is NonNullable<typeof score> => Boolean(score));

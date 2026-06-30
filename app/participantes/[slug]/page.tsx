@@ -323,7 +323,7 @@ export default async function ParticipantePage({ params }: { params: Promise<{ s
                             )}
                           </td>
                           <td className="px-3 py-2">
-                            {bet.status !== "OFFICIAL" || !bet.score ? (
+                            {!bet.score || (bet.score.pointsTotal === 0 && bet.status !== "OFFICIAL") ? (
                               <span className="text-sm text-slate-500">Pendiente</span>
                             ) : (
                               <div>

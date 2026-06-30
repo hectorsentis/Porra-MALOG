@@ -72,11 +72,10 @@ export function scoreMatch(
   const predQualUpper = bet.predQualifiedTeamId?.trim().toUpperCase();
   const qualifiedOk = Boolean(
     koPhase &&
-      finished &&
       predQualUpper &&
       (phaseQualifiers
         ? phaseQualifiers.has(predQualUpper)
-        : result.qualifiedTeamId && sameTeam(bet.predQualifiedTeamId, result.qualifiedTeamId))
+        : finished && result.qualifiedTeamId && sameTeam(bet.predQualifiedTeamId, result.qualifiedTeamId))
   );
   const cruceExactoOk = Boolean(
     finished &&
