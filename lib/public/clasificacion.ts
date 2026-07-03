@@ -2,9 +2,8 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
-import { getMatchMadridDayKey, getMadridTodayKey } from "@/lib/utils/timezone";
+import { getEstDayKey, getMatchMadridDayKey, getMadridTodayKey } from "@/lib/utils/timezone";
 import { API_FOOTBALL_STATUS_LABELS } from "@/lib/api-football/constants";
-import { getMatchEventSnapshots } from "./snapshots";
 import { toPublicClassificationRow } from "./mappers";
 import type { PublicClassificationRow } from "./dto";
 import type { PublicFilters } from "./filters";
@@ -68,7 +67,7 @@ export type ClassificationOverview = {
  */
 const getCachedClassificationBase = unstable_cache(
   async () => {
-    const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, draftMatchesCount, matchEvents] = await Promise.all([
+    const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, draftMatchesCount] = await Promise.all([
       prisma.generalRanking.findMany({
         orderBy: { pos: "asc" },
         include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } }
@@ -97,18 +96,8 @@ const getCachedClassificationBase = unstable_cache(
         where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
         select: { fecha: true }
       }),
-      prisma.match.count({ where: { status: "DRAFT" } }),
-      getMatchEventSnapshots()
+      prisma.match.count({ where: { status: "DRAFT" } })
     ]);
-
-    const currentDayKey = matchEvents[0]?.dayKey ?? null;
-    const previousDaySnapshot = matchEvents.find((event) => currentDayKey != null && event.dayKey !== currentDayKey) ?? null;
-    const previousDayPosRows = previousDaySnapshot
-      ? await prisma.rankingSnapshotRow.findMany({
-          where: { snapshotId: previousDaySnapshot.snapshotId },
-          select: { participantId: true, pos: true }
-        })
-      : [];
 
     const scoringByParticipant = new Map<string, typeof scoringRows>();
     for (const row of scoringRows) {
@@ -133,14 +122,30 @@ const getCachedClassificationBase = unstable_cache(
       phaseSnapshot,
       officialMatches,
       draftMatchesCount,
-      matchEvents,
-      currentDayKey,
-      previousDaySnapshot,
-      previousDayPosRows,
       lastBets
     };
   },
   [RANKING_CACHE_TAG, "classification-base"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);
+
+/**
+ * The "day-start" snapshot is created by recalculateAll() the first time it
+ * runs on a given (EST) calendar day, capturing ranking positions as they
+ * were right before that day's first change — exactly the baseline needed
+ * for "Δ dia". Querying it directly (instead of trying to reconstruct a day
+ * boundary from the match-event log, which is ordered by kickoff time and
+ * can include results entered late/out of order) is what recalculateAll
+ * itself uses for the persisted `deltaPosDay` field, so this keeps both in
+ * sync.
+ */
+const getCachedDayStartSnapshot = unstable_cache(
+  async (dayKey: string) =>
+    prisma.rankingSnapshot.findFirst({
+      where: { trigger: "day-start", dayKey },
+      select: { dayKey: true, rows: { select: { participantId: true, pos: true } } }
+    }),
+  [RANKING_CACHE_TAG, "day-start-snapshot"],
   { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
 );
 
@@ -149,7 +154,11 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
   // the actual calendar day, not the day of the most recently scored match.
   const madridTodayKey = getMadridTodayKey();
 
-  const [cached, liveMatchRow, provisionalOverlay] = await Promise.all([
+  // recalculateAll() keys its "day-start" snapshot by EST day (see lib/game/recalculateAll.ts),
+  // so the baseline lookup has to use the same day key to actually find it.
+  const dayStartKey = getEstDayKey();
+
+  const [cached, liveMatchRow, provisionalOverlay, dayStartSnapshot] = await Promise.all([
     getCachedClassificationBase(),
     prisma.match.findFirst({
       where: { status: "DRAFT" },
@@ -163,7 +172,8 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
         apiFootballSync: { select: { lastStatus: true } }
       }
     }),
-    getLiveProvisionalOverlay()
+    getLiveProvisionalOverlay(),
+    getCachedDayStartSnapshot(dayStartKey)
   ]);
   const {
     generalRanking,
@@ -172,27 +182,12 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
     phaseSnapshot,
     officialMatches,
     draftMatchesCount,
-    matchEvents,
     lastBets
   } = cached;
 
-  // "currentDayKey" = today's Madrid date (may be after the most recent match day
-  // when no matches have been scored yet today, e.g. during a manual recalculate).
+  // "currentDayKey" = today's Madrid date, used for "played today" stats below
+  // (independent of the EST-based day-start baseline used for Δ dia).
   const currentDayKey = madridTodayKey;
-
-  // Previous-day snapshot: last match event whose day is strictly before today.
-  const prevDayEvent = matchEvents.find((event) => event.dayKey < madridTodayKey) ?? null;
-
-  // Re-use cached rows when the snapshot is the same; otherwise fetch fresh rows.
-  let previousDayPosRows = cached.previousDayPosRows;
-  if (prevDayEvent?.snapshotId !== cached.previousDaySnapshot?.snapshotId) {
-    previousDayPosRows = prevDayEvent
-      ? await prisma.rankingSnapshotRow.findMany({
-          where: { snapshotId: prevDayEvent.snapshotId },
-          select: { participantId: true, pos: true }
-        })
-      : [];
-  }
 
   // Revive Date fields — unstable_cache serializes them to strings on a cache hit.
   for (const row of scoringRows) {
@@ -214,9 +209,13 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
       }
     : null;
 
-  const previousDayPosByParticipant = prevDayEvent ? new Map(previousDayPosRows.map((row) => [row.participantId, row.pos])) : null;
+  const previousDayPosByParticipant = dayStartSnapshot ? new Map(dayStartSnapshot.rows.map((row) => [row.participantId, row.pos])) : null;
 
-  const dayBaselineLabel = prevDayEvent ? `el cierre del ${formatDayKeyEsLabel(prevDayEvent.dayKey)}` : "—";
+  // Label as "yesterday" in Madrid terms (the day-start snapshot is keyed by
+  // EST internally, but this is just user-facing wording).
+  const yesterdayMadrid = new Date(`${madridTodayKey}T00:00:00.000Z`);
+  yesterdayMadrid.setUTCDate(yesterdayMadrid.getUTCDate() - 1);
+  const dayBaselineLabel = dayStartSnapshot ? `el cierre del ${formatDayKeyEsLabel(yesterdayMadrid.toISOString().slice(0, 10))}` : "—";
 
   const matchesCountByParticipant = new Map(matchCounts.map((entry) => [entry.participantId, entry._count._all]));
 
