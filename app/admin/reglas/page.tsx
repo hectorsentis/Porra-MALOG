@@ -1,6 +1,6 @@
 ﻿import { AdminShell } from "@/components/admin/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/admin/auth";
+import { requireAdminForPath } from "@/lib/admin/auth";
 import { getRuleRows } from "@/lib/game/ruleConfig";
 import { saveRulesAction } from "../actions";
 
@@ -11,7 +11,7 @@ export default async function AdminReglasPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireAdminForPath("/admin/reglas");
   const params = await searchParams;
   const rules = await getRuleRows();
   const grouped = rules.reduce<Map<string, typeof rules>>((map, rule) => {

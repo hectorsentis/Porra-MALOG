@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAdminSession, destroyAdminSession, requireAdmin } from "@/lib/admin/auth";
+import { changeAuditorPassword, createAdminSession, destroyAdminSession, requireAdmin } from "@/lib/admin/auth";
 import { importExcelWorkbook, type ExcelImportPreview } from "@/lib/import/excel";
 import { prisma } from "@/lib/prisma";
 import { recalculateAll } from "@/lib/game/recalculateAll";
 import { metadataForRule } from "@/lib/game/ruleConfig";
 import { linkResolvedKnockoutMatchesWithApiFootball } from "@/lib/api-football/linkKnockouts";
+import { saveTournamentBonusOverride } from "@/lib/admin/bonusOverrides";
 
 export type ImportActionState = {
   preview?: ExcelImportPreview;
@@ -17,8 +18,9 @@ export type ImportActionState = {
 export async function loginAction(formData: FormData) {
   const username = String(formData.get("username") ?? "");
   const password = String(formData.get("password") ?? "");
-  const ok = await createAdminSession(username, password);
-  if (!ok) redirect("/admin?error=1");
+  const result = await createAdminSession(username, password);
+  if (!result.ok) redirect("/admin?error=1");
+  if (result.session.mustChangePassword) redirect("/admin/cambiar-password");
   redirect("/admin");
 }
 
@@ -27,8 +29,17 @@ export async function logoutAction() {
   redirect("/admin");
 }
 
+export async function changePasswordAction(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  if (password.length < 8 || password !== confirmPassword) redirect("/admin/cambiar-password?error=1");
+  const ok = await changeAuditorPassword(password);
+  if (!ok) redirect("/admin/cambiar-password?error=1");
+  redirect("/admin?passwordChanged=1");
+}
+
 export async function excelImportAction(_state: ImportActionState, formData: FormData): Promise<ImportActionState> {
-  await requireAdmin();
+  await requireAdmin({ roles: ["ADMIN"] });
   const file = formData.get("file");
   const intent = String(formData.get("intent") ?? "preview");
   if (!(file instanceof File) || file.size === 0) return { error: "Selecciona un Excel oficial." };
@@ -42,7 +53,7 @@ export async function excelImportAction(_state: ImportActionState, formData: For
 }
 
 export async function saveResultAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin({ roles: ["ADMIN", "AUDITOR"] });
   const matchId = String(formData.get("matchId") ?? "");
   const intent = String(formData.get("intent") ?? "draft");
   const homeGoalsRaw = String(formData.get("homeGoals") ?? "");
@@ -83,7 +94,7 @@ export async function saveResultAction(formData: FormData) {
         qualifiedTeamId,
         isActive: true,
         isOfficial: publishOfficial,
-        createdBy: "admin"
+        createdBy: session.username
       }
     });
     await tx.matchResultEvent.create({
@@ -99,24 +110,25 @@ export async function saveResultAction(formData: FormData) {
         qualifiedTeamId,
         phase: previous.fase,
         matchday: previous.jornadaId,
-        createdBy: "admin"
+        createdBy: session.username
       }
     });
     await tx.adminLog.create({
       data: {
         action: publishOfficial ? "RESULT_OFFICIAL" : "RESULT_DRAFT",
-        message: publishOfficial ? `Resultado oficial publicado: ${matchId}` : `Borrador guardado: ${matchId}`
+        message: publishOfficial ? `Resultado oficial publicado: ${matchId}` : `Borrador guardado: ${matchId}`,
+        metadata: { actor: session.username, role: session.role }
       }
     });
   });
   if (publishOfficial) {
-    await recalculateAll(prisma, { trigger: "official-result", matchId, createdBy: "admin" });
+    await recalculateAll(prisma, { trigger: "official-result", matchId, createdBy: session.username });
   }
   redirect("/admin/resultados?saved=1");
 }
 
 export async function deleteResultAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin({ roles: ["ADMIN", "AUDITOR"] });
   const matchId = String(formData.get("matchId") ?? "");
   if (!matchId) redirect("/admin/resultados?error=1");
 
@@ -157,20 +169,20 @@ export async function deleteResultAction(formData: FormData) {
         qualifiedTeamId: null,
         phase: previous.fase,
         matchday: previous.jornadaId,
-        createdBy: "admin"
+        createdBy: session.username
       }
     });
-    await tx.adminLog.create({ data: { action: "RESULT_DELETED", message: `Resultado borrado: ${matchId}` } });
+    await tx.adminLog.create({ data: { action: "RESULT_DELETED", message: `Resultado borrado: ${matchId}`, metadata: { actor: session.username, role: session.role } } });
   });
 
   if (wasOfficial) {
-    await recalculateAll(prisma, { trigger: "result-deleted", matchId, createdBy: "admin" });
+    await recalculateAll(prisma, { trigger: "result-deleted", matchId, createdBy: session.username });
   }
   redirect("/admin/resultados?deleted=1");
 }
 
 export async function saveMatchAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin({ roles: ["ADMIN"] });
   const matchId = String(formData.get("matchId") ?? "").trim();
   const matchNoRaw = String(formData.get("matchNo") ?? "");
   const fechaRaw = String(formData.get("fecha") ?? "");
@@ -201,12 +213,12 @@ export async function saveMatchAction(formData: FormData) {
     update: data,
     create: { matchId, finished: false, status: "PENDING", ...data }
   });
-  await prisma.adminLog.create({ data: { action: "MATCH_SAVED", message: `Partido guardado: ${matchId}` } });
+  await prisma.adminLog.create({ data: { action: "MATCH_SAVED", message: `Partido guardado: ${matchId}`, metadata: { actor: session.username, role: session.role } } });
   redirect("/admin/partidos?saved=1");
 }
 
 export async function clearTestResultsAction() {
-  await requireAdmin();
+  const session = await requireAdmin({ roles: ["ADMIN"] });
   await prisma.$transaction(async (tx) => {
     await tx.match.updateMany({
       data: {
@@ -249,24 +261,24 @@ export async function clearTestResultsAction() {
       data: {
         eventType: "CLEAR_TEST_RESULTS",
         nextStatus: "PENDING",
-        createdBy: "admin"
+        createdBy: session.username
       }
     });
-    await tx.adminLog.create({ data: { action: "CLEAR_TEST_RESULTS", message: "Resultados de prueba limpiados para inicio de produccion." } });
+    await tx.adminLog.create({ data: { action: "CLEAR_TEST_RESULTS", message: "Resultados de prueba limpiados para inicio de produccion.", metadata: { actor: session.username, role: session.role } } });
   });
-  await recalculateAll(prisma, { trigger: "production-reset", eventLabel: "Inicio de produccion", createdBy: "admin" });
+  await recalculateAll(prisma, { trigger: "production-reset", eventLabel: "Inicio de produccion", createdBy: session.username });
   redirect("/admin/resultados?cleared=1");
 }
 
 export async function forceRecalculateAction() {
-  await requireAdmin();
-  await recalculateAll(prisma, { trigger: "manual", eventLabel: "Recalculo manual desde admin", createdBy: "admin" });
+  const session = await requireAdmin({ roles: ["ADMIN", "AUDITOR"] });
+  await recalculateAll(prisma, { trigger: "manual", eventLabel: "Recalculo manual desde admin", createdBy: session.username });
   revalidatePath("/clasificacion");
   redirect("/admin?recalculated=1");
 }
 
 export async function saveBoteAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin({ roles: ["ADMIN"] });
   await prisma.boteConfig.upsert({
     where: { id: "default" },
     update: {
@@ -277,7 +289,7 @@ export async function saveBoteAction(formData: FormData) {
       consolationPrize: String(formData.get("consolationPrize") ?? "0"),
       currency: String(formData.get("currency") ?? "EUR") || "EUR",
       notes: String(formData.get("notes") ?? "") || null,
-      updatedBy: "admin",
+      updatedBy: session.username,
       rules: String(formData.get("rules") ?? "") || "Reparto del bote entre primer, segundo, tercer clasificado y premio de consolacion."
     },
     create: {
@@ -289,7 +301,7 @@ export async function saveBoteAction(formData: FormData) {
       consolationPrize: String(formData.get("consolationPrize") ?? "0"),
       currency: String(formData.get("currency") ?? "EUR") || "EUR",
       notes: String(formData.get("notes") ?? "") || null,
-      updatedBy: "admin",
+      updatedBy: session.username,
       rules: String(formData.get("rules") ?? "Reparto del bote entre primer, segundo, tercer clasificado y premio de consolacion."),
       amountPerParticipant: "0",
       manualAdjustment: "0",
@@ -299,46 +311,60 @@ export async function saveBoteAction(formData: FormData) {
       specialPrizeAmount: "0"
     }
   });
-  await prisma.adminLog.create({ data: { action: "BOTE_UPDATED", message: "Configuracion del bote actualizada." } });
+  await prisma.adminLog.create({ data: { action: "BOTE_UPDATED", message: "Configuracion del bote actualizada.", metadata: { actor: session.username, role: session.role } } });
   redirect("/admin/bote?saved=1");
 }
 
 export async function saveTournamentBonusAction(formData: FormData) {
-  await requireAdmin();
-  const maximoGoleador = String(formData.get("maximoGoleador") ?? "").trim() || null;
-  const db = prisma as unknown as {
-    tournamentBonusResult: {
-      upsert: (args: {
-        where: { id: string };
-        update: { maximoGoleador: string | null; updatedBy: string };
-        create: { id: string; maximoGoleador: string | null; updatedBy: string };
-      }) => Promise<unknown>;
-    };
-  };
-  await db.tournamentBonusResult.upsert({
-    where: { id: "default" },
-    update: { maximoGoleador, updatedBy: "admin" },
-    create: { id: "default", maximoGoleador, updatedBy: "admin" }
-  });
-  await prisma.adminLog.create({ data: { action: "BONUS_UPDATED", message: "Bonus final actualizado desde admin." } });
+  const session = await requireAdmin({ roles: ["ADMIN", "AUDITOR"] });
+  const text = (key: string) => String(formData.get(key) ?? "").trim() || null;
+  const totalGolesRaw = String(formData.get("totalGolesTorneo") ?? "").trim();
+  const totalGolesTorneo = totalGolesRaw ? Number(totalGolesRaw) : null;
+  if (totalGolesTorneo != null && !Number.isInteger(totalGolesTorneo)) redirect("/admin/bonus?error=1");
+
+  try {
+    await saveTournamentBonusOverride({
+      campeon: text("campeon"),
+      subcampeon: text("subcampeon"),
+      semifinalistas: text("semifinalistas"),
+      maximoGoleador: text("maximoGoleador"),
+      seleccionMasGoleadora: text("seleccionMasGoleadora"),
+      seleccionMasGoleada: text("seleccionMasGoleada"),
+      seleccionMenosGoleadora: text("seleccionMenosGoleadora"),
+      seleccionMenosGoleada: text("seleccionMenosGoleada"),
+      equipoRevelacion: text("equipoRevelacion"),
+      equipoDecepcion: text("equipoDecepcion"),
+      totalGolesTorneo,
+      bonusLockedOverride: formData.get("bonusLockedOverride") === "on" ? true : null,
+      updatedBy: session.username
+    });
+  } catch {
+    redirect("/admin/bonus?error=1");
+  }
+
+  try {
+    await prisma.adminLog.create({ data: { action: "BONUS_UPDATED", message: "Bonus final actualizado desde admin.", metadata: { actor: session.username, role: session.role } } });
+  } catch {
+    // Bonus save is owned by Supabase; lack of legacy log access must not undo it.
+  }
   redirect("/admin/bonus?saved=1");
 }
 
 export async function linkKnockoutApiFootballAction() {
-  await requireAdmin();
+  const session = await requireAdmin({ roles: ["ADMIN"] });
   const result = await linkResolvedKnockoutMatchesWithApiFootball();
   await prisma.adminLog.create({
     data: {
       action: "API_FOOTBALL_LINK_KO",
       message: `Vinculados ${result.linked} cruces con API-Football.`,
-      metadata: result
+      metadata: { ...result, actor: session.username, role: session.role }
     }
   });
   redirect(`/admin/partidos?linked=${result.linked}&skipped=${result.skipped.length}`);
 }
 
 export async function saveRulesAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin({ roles: ["ADMIN"] });
   const keys = formData.getAll("ruleKey").map((value) => String(value));
   await prisma.$transaction(async (tx) => {
     for (const key of keys) {
@@ -360,14 +386,14 @@ export async function saveRulesAction(formData: FormData) {
         create: { key, ...data }
       });
     }
-    await tx.adminLog.create({ data: { action: "RULES_UPDATED", message: "Reglas de puntuacion actualizadas desde admin." } });
+    await tx.adminLog.create({ data: { action: "RULES_UPDATED", message: "Reglas de puntuacion actualizadas desde admin.", metadata: { actor: session.username, role: session.role } } });
   });
   revalidatePath("/reglas");
   revalidatePath("/admin/reglas");
   redirect("/admin/reglas?saved=1");
 }
 export async function rollbackAction() {
-  await requireAdmin();
+  const session = await requireAdmin({ roles: ["ADMIN", "AUDITOR"] });
   const latest = await prisma.rankingSnapshot.findFirst({
     where: { isPublished: true },
     orderBy: { createdAt: "desc" },
@@ -403,7 +429,7 @@ export async function rollbackAction() {
     await tx.generalRanking.createMany({
       data: rankingRows as unknown as NonNullable<Parameters<typeof tx.generalRanking.createMany>[0]>["data"]
     });
-    await tx.adminLog.create({ data: { action: "ROLLBACK", message: `Rollback a snapshot ${snapshot.id}` } });
+    await tx.adminLog.create({ data: { action: "ROLLBACK", message: `Rollback a snapshot ${snapshot.id}`, metadata: { actor: session.username, role: session.role } } });
   });
   redirect("/admin/rollback?ok=1");
 }

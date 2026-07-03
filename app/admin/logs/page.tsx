@@ -1,12 +1,12 @@
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/admin/auth";
+import { requireAdminForPath } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLogsPage() {
-  await requireAdmin();
+  await requireAdminForPath("/admin/logs");
   let logs: Array<{ id: string; action: string; message: string; createdAt: Date }> = [];
   try {
     logs = await prisma.adminLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 });

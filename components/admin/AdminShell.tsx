@@ -2,6 +2,7 @@ import Link from "next/link";
 import { logoutAction } from "@/app/admin/actions";
 import { OfficialBrandLogo } from "@/components/shell/OfficialBrandLogo";
 import { Button } from "@/components/ui/button";
+import { canAccessAdminPath, getAdminSession } from "@/lib/admin/auth";
 
 const nav = [
   ["/admin", "Panel"],
@@ -15,7 +16,10 @@ const nav = [
   ["/admin/rollback", "Rollback"]
 ];
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+export async function AdminShell({ children }: { children: React.ReactNode }) {
+  const session = await getAdminSession();
+  const visibleNav = nav.filter(([href]) => session && canAccessAdminPath(session.role, href));
+
   return (
     <div className="min-h-screen bg-air-page">
       <header className="border-b border-slate-200 bg-white">
@@ -33,7 +37,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </header>
       <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 lg:grid-cols-[200px_minmax(0,1fr)]">
         <nav className="grid content-start gap-1 rounded-lg border border-slate-200 bg-white p-2">
-          {nav.map(([href, label]) => (
+          {visibleNav.map(([href, label]) => (
             <Link key={href} href={href} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-air-gold">{label}</Link>
           ))}
         </nav>

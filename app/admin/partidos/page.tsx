@@ -2,13 +2,13 @@ import { linkKnockoutApiFootballAction, saveMatchAction } from "@/app/admin/acti
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/admin/auth";
+import { requireAdminForPath } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPartidosPage({ searchParams }: { searchParams: Promise<{ linked?: string; skipped?: string }> }) {
-  await requireAdmin();
+  const session = await requireAdminForPath("/admin/partidos");
   const params = await searchParams;
   const [matches, teams] = await Promise.all([
     prisma.match.findMany({
@@ -62,9 +62,11 @@ export default async function AdminPartidosPage({ searchParams }: { searchParams
               <label className="flex h-10 items-center gap-2 text-sm"><input name="needsPens" type="checkbox" /> Puede requerir penaltis</label>
               <Button>Guardar partido</Button>
             </form>
-            <form action={linkKnockoutApiFootballAction} className="mt-3">
-              <Button variant="secondary">Vincular cruces de eliminatorias con API-Football</Button>
-            </form>
+            {session.role === "ADMIN" ? (
+              <form action={linkKnockoutApiFootballAction} className="mt-3">
+                <Button variant="secondary">Vincular cruces de eliminatorias con API-Football</Button>
+              </form>
+            ) : null}
           </CardContent>
         </Card>
 

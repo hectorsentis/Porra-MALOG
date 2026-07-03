@@ -51,3 +51,12 @@ export function getMatchKickoffUtc(fecha: Date, hora: string | null): Date {
 export function getMatchMadridDayKey(fecha: Date): string {
   return fecha.toISOString().slice(0, 10);
 }
+
+export function getMadridTodayKey(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: MADRID_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}

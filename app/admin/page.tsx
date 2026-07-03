@@ -1,16 +1,18 @@
-import { loginAction, forceRecalculateAction } from "./actions";
-import { verifyAdminSession } from "@/lib/admin/auth";
+import { loginAction } from "./actions";
+import { redirect } from "next/navigation";
+import { getAdminSession } from "@/lib/admin/auth";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RecalculateForm } from "@/components/admin/RecalculateForm";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ error?: string; recalculated?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ error?: string; recalculated?: string; forbidden?: string; passwordChanged?: string }> }) {
   const params = await searchParams;
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
+  const session = await getAdminSession();
+  if (!session) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-air-page p-4">
         <Card className="w-full max-w-md">
@@ -33,6 +35,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </div>
     );
   }
+  if (session.mustChangePassword) redirect("/admin/cambiar-password");
 
   let stats = { participants: 0, matches: 0, imports: 0 };
   try {
@@ -54,10 +57,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <Card><CardContent><p className="text-xs uppercase text-slate-500">Imports</p><p className="text-3xl font-bold">{stats.imports}</p></CardContent></Card>
       </div>
       <Card className="mt-4">
-        <CardContent className="flex items-center gap-4">
-          <form action={forceRecalculateAction}>
-            <Button variant="secondary">Forzar recalculo de clasificacion</Button>
-          </form>
+        <CardContent className="grid gap-3">
+          {params.forbidden ? <p className="text-sm text-air-down">No tienes permisos para esa seccion.</p> : null}
+          {params.passwordChanged ? <p className="text-sm text-air-up">Password actualizado correctamente.</p> : null}
+          <RecalculateForm />
           {params.recalculated ? <p className="text-sm text-air-up">Clasificacion recalculada correctamente.</p> : null}
         </CardContent>
       </Card>

@@ -283,11 +283,22 @@ model TournamentTeamPerformance {
 }
 
 model TournamentBonusResult {
-  id             String   @id @default("default")
-  maximoGoleador String?
-  updatedBy      String?
-  updatedAt      DateTime @updatedAt
-  createdAt      DateTime @default(now())
+  id                      String   @id @default("default")
+  campeon                 String?
+  subcampeon              String?
+  semifinalistas          String?
+  maximoGoleador          String?
+  seleccionMasGoleadora   String?
+  seleccionMasGoleada     String?
+  seleccionMenosGoleadora String?
+  seleccionMenosGoleada   String?
+  equipoRevelacion        String?
+  equipoDecepcion         String?
+  totalGolesTorneo        Int?
+  bonusLockedOverride     Boolean?
+  updatedBy               String?
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
 
   @@map("tbl_tournament_bonus_results")
 }

@@ -2,12 +2,12 @@ import { rollbackAction } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/admin/auth";
+import { requireAdminForPath } from "@/lib/admin/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminRollbackPage() {
-  await requireAdmin();
+  await requireAdminForPath("/admin/rollback");
   return (
     <AdminShell>
       <Card>

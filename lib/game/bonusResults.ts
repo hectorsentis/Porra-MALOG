@@ -1,16 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
+import { getTournamentBonusOverride } from "@/lib/admin/bonusOverrides";
 import type { BonusResultInput } from "./types";
 import { isOfficialMatchForScoring } from "./matchStatus";
-
-type BonusConfig = {
-  maximoGoleador: string | null;
-};
-
-type BonusDb = {
-  tournamentBonusResult: {
-    findUnique: (args: { where: { id: string } }) => Promise<BonusConfig | null>;
-  };
-};
 
 type BonusMatch = {
   fase: string | null;
@@ -64,6 +55,15 @@ function splitManualList(value: string | null | undefined) {
     .filter(Boolean);
 }
 
+function overrideList(value: string | null | undefined, fallback: string[]) {
+  const list = splitManualList(value);
+  return list.length > 0 ? list : fallback;
+}
+
+function overrideValue(value: string | null | undefined, fallback: string | null) {
+  return value == null || value === "" ? fallback : value;
+}
+
 function tiedByGoals(rows: BonusPerformance[], field: "tournamentGf" | "tournamentGc", direction: "max" | "min") {
   if (rows.length === 0) return [];
   const target = direction === "max"
@@ -98,7 +98,6 @@ function disappointment(rows: BonusPerformance[], rankByTeam: Map<string, number
 }
 
 export async function getTournamentBonusResult(prisma: PrismaClient): Promise<TournamentBonusResult> {
-  const db = prisma as unknown as BonusDb;
   const [matches, performances, teams, config] = await Promise.all([
     prisma.match.findMany({
       select: {
@@ -116,7 +115,7 @@ export async function getTournamentBonusResult(prisma: PrismaClient): Promise<To
     }),
     (prisma as unknown as { tournamentTeamPerformance: { findMany: () => Promise<BonusPerformance[]> } }).tournamentTeamPerformance.findMany(),
     prisma.team.findMany({ select: { teamId: true, fifaRank: true } }),
-    db.tournamentBonusResult.findUnique({ where: { id: "default" } })
+    getTournamentBonusOverride().catch(() => null)
   ]);
 
   const final = matches.find((match) => phaseKey(match.fase) === "FINAL" && isOfficialMatchForScoring(match));
@@ -132,19 +131,21 @@ export async function getTournamentBonusResult(prisma: PrismaClient): Promise<To
   ];
   const officialMatches = matches.filter(isOfficialMatchForScoring);
   const totalGolesTorneo = officialMatches.reduce((sum, match) => sum + (match.homeGoals ?? 0) + (match.awayGoals ?? 0), 0);
+  const autoCampeon = final ? qualifiedTeam(final) : null;
+  const autoSubcampeon = final ? loserTeam(final) : null;
 
   return {
-    bonusLocked,
-    campeon: final ? qualifiedTeam(final) : null,
-    subcampeon: final ? loserTeam(final) : null,
-    semifinalistas,
+    bonusLocked: config?.bonusLockedOverride ?? bonusLocked,
+    campeon: overrideValue(config?.campeon, autoCampeon),
+    subcampeon: overrideValue(config?.subcampeon, autoSubcampeon),
+    semifinalistas: overrideList(config?.semifinalistas, semifinalistas),
     maximoGoleador: splitManualList(config?.maximoGoleador),
-    seleccionMasGoleadora: tiedByGoals(performances, "tournamentGf", "max"),
-    seleccionMasGoleada: tiedByGoals(performances, "tournamentGc", "max"),
-    seleccionMenosGoleadora: tiedByGoals(performances, "tournamentGf", "min"),
-    seleccionMenosGoleada: tiedByGoals(performances, "tournamentGc", "min"),
-    equipoRevelacion: revelation(performances, rankByTeam),
-    equipoDecepcion: disappointment(performances, rankByTeam),
-    totalGolesTorneo
+    seleccionMasGoleadora: overrideList(config?.seleccionMasGoleadora, tiedByGoals(performances, "tournamentGf", "max")),
+    seleccionMasGoleada: overrideList(config?.seleccionMasGoleada, tiedByGoals(performances, "tournamentGc", "max")),
+    seleccionMenosGoleadora: overrideList(config?.seleccionMenosGoleadora, tiedByGoals(performances, "tournamentGf", "min")),
+    seleccionMenosGoleada: overrideList(config?.seleccionMenosGoleada, tiedByGoals(performances, "tournamentGc", "min")),
+    equipoRevelacion: overrideList(config?.equipoRevelacion, revelation(performances, rankByTeam)),
+    equipoDecepcion: overrideList(config?.equipoDecepcion, disappointment(performances, rankByTeam)),
+    totalGolesTorneo: config?.totalGolesTorneo ?? totalGolesTorneo
   };
 }

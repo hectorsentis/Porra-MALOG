@@ -4,7 +4,7 @@ import { ConfirmButton } from "@/components/admin/ConfirmButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/admin/auth";
+import { requireAdminForPath } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { scoreMatch } from "@/lib/game/scoreMatch";
@@ -202,7 +202,7 @@ function MatchRow({ match, showQualified, preview }: { match: MatchRowData; show
 }
 
 export default async function AdminResultadosPage() {
-  await requireAdmin();
+  const session = await requireAdminForPath("/admin/resultados");
   let matches: MatchRowData[] = [];
   try {
     matches = await prisma.match.findMany({
@@ -311,15 +311,17 @@ export default async function AdminResultadosPage() {
             <CardTitle>Meter resultados online</CardTitle>
             <ProgressBadge played={totalPlayed} total={matches.length} />
           </CardHeader>
-          <CardContent>
-            <form action={clearTestResultsAction} className="rounded-md border border-amber-200 bg-amber-50 p-3">
-              <p className="mb-2 text-sm font-semibold text-amber-950">Inicio de produccion</p>
-              <p className="mb-3 text-sm text-amber-900">Limpia marcadores cargados durante pruebas y deja todos los partidos pendientes.</p>
-              <Button name="intent" value="clear" variant="secondary">
-                Limpiar resultados de prueba
-              </Button>
-            </form>
-          </CardContent>
+          {session.role === "ADMIN" ? (
+            <CardContent>
+              <form action={clearTestResultsAction} className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                <p className="mb-2 text-sm font-semibold text-amber-950">Inicio de produccion</p>
+                <p className="mb-3 text-sm text-amber-900">Limpia marcadores cargados durante pruebas y deja todos los partidos pendientes.</p>
+                <Button name="intent" value="clear" variant="secondary">
+                  Limpiar resultados de prueba
+                </Button>
+              </form>
+            </CardContent>
+          ) : null}
         </Card>
 
         {matches.length === 0 ? (

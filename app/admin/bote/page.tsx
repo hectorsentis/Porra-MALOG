@@ -2,7 +2,7 @@ import { saveBoteAction } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/admin/auth";
+import { requireAdminForPath } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ function money(value: unknown) {
 }
 
 export default async function AdminBotePage() {
-  await requireAdmin();
+  await requireAdminForPath("/admin/bote");
   const [config, totalParticipants, includedParticipants, pendingParticipants] = await Promise.all([
     prisma.boteConfig.findUnique({ where: { id: "default" } }),
     prisma.participant.count(),

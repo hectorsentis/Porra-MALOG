@@ -2,7 +2,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
-import { getMatchMadridDayKey } from "@/lib/utils/timezone";
+import { getMatchMadridDayKey, getMadridTodayKey } from "@/lib/utils/timezone";
 import { API_FOOTBALL_STATUS_LABELS } from "@/lib/api-football/constants";
 import { getMatchEventSnapshots } from "./snapshots";
 import { toPublicClassificationRow } from "./mappers";
@@ -145,6 +145,10 @@ const getCachedClassificationBase = unstable_cache(
 );
 
 export async function getClassificationOverview(filters: PublicFilters = {}): Promise<ClassificationOverview> {
+  // Compute today's date in Madrid timezone OUTSIDE the cache so it always reflects
+  // the actual calendar day, not the day of the most recently scored match.
+  const madridTodayKey = getMadridTodayKey();
+
   const [cached, liveMatchRow, provisionalOverlay] = await Promise.all([
     getCachedClassificationBase(),
     prisma.match.findFirst({
@@ -168,11 +172,27 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
     phaseSnapshot,
     officialMatches,
     draftMatchesCount,
-    currentDayKey,
-    previousDaySnapshot,
-    previousDayPosRows,
+    matchEvents,
     lastBets
   } = cached;
+
+  // "currentDayKey" = today's Madrid date (may be after the most recent match day
+  // when no matches have been scored yet today, e.g. during a manual recalculate).
+  const currentDayKey = madridTodayKey;
+
+  // Previous-day snapshot: last match event whose day is strictly before today.
+  const prevDayEvent = matchEvents.find((event) => event.dayKey < madridTodayKey) ?? null;
+
+  // Re-use cached rows when the snapshot is the same; otherwise fetch fresh rows.
+  let previousDayPosRows = cached.previousDayPosRows;
+  if (prevDayEvent?.snapshotId !== cached.previousDaySnapshot?.snapshotId) {
+    previousDayPosRows = prevDayEvent
+      ? await prisma.rankingSnapshotRow.findMany({
+          where: { snapshotId: prevDayEvent.snapshotId },
+          select: { participantId: true, pos: true }
+        })
+      : [];
+  }
 
   // Revive Date fields — unstable_cache serializes them to strings on a cache hit.
   for (const row of scoringRows) {
@@ -194,9 +214,9 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
       }
     : null;
 
-  const previousDayPosByParticipant = previousDaySnapshot ? new Map(previousDayPosRows.map((row) => [row.participantId, row.pos])) : null;
+  const previousDayPosByParticipant = prevDayEvent ? new Map(previousDayPosRows.map((row) => [row.participantId, row.pos])) : null;
 
-  const dayBaselineLabel = previousDaySnapshot ? `el cierre del ${formatDayKeyEsLabel(previousDaySnapshot.dayKey)}` : "—";
+  const dayBaselineLabel = prevDayEvent ? `el cierre del ${formatDayKeyEsLabel(prevDayEvent.dayKey)}` : "—";
 
   const matchesCountByParticipant = new Map(matchCounts.map((entry) => [entry.participantId, entry._count._all]));
 

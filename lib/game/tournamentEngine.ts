@@ -406,7 +406,10 @@ export function computeTournamentState(matches: TournamentMatch[], teams: Tourna
       runnerUp: Boolean(final && loserTeam(final) === team.teamId),
       thirdPlace: false,
       reachedRound: [...reached].sort((a, b) => (ROUND_VALUE[b] ?? 0) - (ROUND_VALUE[a] ?? 0))[0] ?? GROUP_PHASE,
-      roundValue: Math.max(...[GROUP_PHASE, ...reached].map((round) => ROUND_VALUE[round] ?? 1)),
+      roundValue: Math.max(
+        ...[GROUP_PHASE, ...reached].map((round) => ROUND_VALUE[round] ?? 1),
+        (standing?.status === "CLASSIFIED" || standing?.status === "THIRD_CLASSIFIED") ? (ROUND_VALUE["R32"] ?? 2) : 1
+      ),
       tournamentGf,
       tournamentGc,
       tournamentDg: tournamentGf - tournamentGc
