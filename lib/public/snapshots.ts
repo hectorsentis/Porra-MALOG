@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getMatchMadridDayKey, getMatchKickoffUtc } from "@/lib/utils/timezone";
-import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG, reviveDate } from "./cache";
 
 export type MatchEventSnapshot = {
   snapshotId: string;
@@ -12,8 +12,7 @@ export type MatchEventSnapshot = {
   dayKey: string;
 };
 
-/** Purely derived from persisted ranking snapshots/matches — cached like the rest of the official-only data. */
-export const getMatchEventSnapshots = unstable_cache(
+const getCachedMatchEventSnapshots = unstable_cache(
   async (): Promise<MatchEventSnapshot[]> => {
   const [snapshots, matches] = await Promise.all([
     prisma.rankingSnapshot.findMany({
@@ -58,3 +57,10 @@ export const getMatchEventSnapshots = unstable_cache(
   [RANKING_CACHE_TAG, "match-event-snapshots"],
   { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
 );
+
+/** Purely derived from persisted ranking snapshots/matches — cached like the rest of the official-only data. */
+export async function getMatchEventSnapshots(): Promise<MatchEventSnapshot[]> {
+  const events = await getCachedMatchEventSnapshots();
+  // Revive `fecha` — unstable_cache serializes Dates to strings on a cache hit.
+  return events.map((event) => ({ ...event, fecha: reviveDate(event.fecha) }));
+}

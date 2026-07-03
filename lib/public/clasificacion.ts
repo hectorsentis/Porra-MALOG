@@ -8,7 +8,7 @@ import { getMatchEventSnapshots } from "./snapshots";
 import { toPublicClassificationRow } from "./mappers";
 import type { PublicClassificationRow } from "./dto";
 import type { PublicFilters } from "./filters";
-import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG, reviveDate } from "./cache";
 import { getLiveProvisionalOverlay } from "./liveOverlay";
 
 function includes(value: string | null | undefined, filter: string | undefined) {
@@ -173,6 +173,14 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
     previousDayPosRows,
     lastBets
   } = cached;
+
+  // Revive Date fields — unstable_cache serializes them to strings on a cache hit.
+  for (const row of scoringRows) {
+    if (row.match.fecha) row.match.fecha = reviveDate(row.match.fecha);
+  }
+  for (const match of officialMatches) {
+    if (match.fecha) match.fecha = reviveDate(match.fecha);
+  }
 
   const liveMatch: LiveMatchInfo | null = liveMatchRow
     ? {

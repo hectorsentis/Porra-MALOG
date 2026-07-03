@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import type { PublicDashboardData, PublicParticipantProfile } from "./dto";
 import type { PublicFilters } from "./filters";
 import { toPublicClassificationRow } from "./mappers";
-import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG, reviveDate, reviveDateOrNull } from "./cache";
 import { getLiveProvisionalOverlay } from "./liveOverlay";
 
 const emptyDashboard: PublicDashboardData = {
@@ -109,6 +109,9 @@ export async function getPublicDashboard(filters: PublicFilters = {}): Promise<P
       }),
       getLiveProvisionalOverlay()
     ]);
+    // Revive Date fields — unstable_cache serializes them to strings on a cache hit.
+    for (const row of classification) row.updatedAt = reviveDate(row.updatedAt);
+    if (nextMatch) nextMatch.fecha = reviveDateOrNull(nextMatch.fecha);
     const ranking = classification
       .map((row) => {
         const delta = provisionalOverlay.get(row.participantId);

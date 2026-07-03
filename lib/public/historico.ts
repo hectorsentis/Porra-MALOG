@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import { phaseGroupOf } from "@/lib/game/recalculateAll";
 import type { PublicFilters } from "./filters";
-import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG, reviveDate } from "./cache";
 
 function includes(value: string | null | undefined, filter: string | undefined) {
   if (!filter) return true;
@@ -80,6 +80,11 @@ const getCachedHistoricalSnapshotRows = unstable_cache(
 export async function getHistoricalRanking(filters: PublicFilters = {}, snapshotId?: string): Promise<HistoricalRanking> {
 
   const { matchSnapshots, phaseMarkers, matches } = await getCachedHistoricalBase();
+  // Revive Date fields — unstable_cache serializes them to strings on a cache hit.
+  for (const snapshot of matchSnapshots) snapshot.createdAt = reviveDate(snapshot.createdAt);
+  for (const match of matches) {
+    if (match.fecha) match.fecha = reviveDate(match.fecha);
+  }
 
   const matchById = new Map(matches.map((match) => [match.matchId, match]));
 

@@ -20,3 +20,21 @@ export const RANKING_CACHE_REVALIDATE_SECONDS = 60;
 
 export const LIVE_BETS_CACHE_TAG = "live-bets";
 export const LIVE_BETS_CACHE_REVALIDATE_SECONDS = 300;
+
+/**
+ * `unstable_cache` JSON-serializes its return value. On a cache MISS it hands
+ * back the live in-memory result (real `Date` objects survive), but on a
+ * cache HIT it returns the deserialized value, where every `Date` field has
+ * become a plain ISO string. Any code that later calls `.toISOString()` or
+ * other Date methods on a cached field must revive it first with this
+ * helper, or it will throw intermittently once the cache warms up (this bit
+ * production once already — see git history).
+ */
+export function reviveDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+export function reviveDateOrNull(value: Date | string | null | undefined): Date | null {
+  if (value == null) return null;
+  return reviveDate(value);
+}

@@ -3,7 +3,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import type { PublicFilters } from "./filters";
-import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG, reviveDate } from "./cache";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -176,6 +176,10 @@ const getCachedEvolutionScoring = unstable_cache(
 
 export async function getDailyEvolution(filters: PublicFilters) {
   const rows = await getCachedEvolutionScoring(filters.fase ?? "", filters.jornada ?? "", filters.grupo ?? "");
+  // Revive Date fields — unstable_cache serializes them to strings on a cache hit.
+  for (const score of rows) {
+    if (score.match.fecha) score.match.fecha = reviveDate(score.match.fecha);
+  }
 
   const byDay = new Map<string, DailyEvolutionRow & { byParticipant: Map<string, number> }>();
   for (const score of rows) {
@@ -260,6 +264,10 @@ const getCachedParticipantEvolutionScoring = unstable_cache(
 
 export async function getParticipantPointsEvolution(filters: PublicFilters) {
   const rows = await getCachedParticipantEvolutionScoring(filters.fase ?? "", filters.jornada ?? "", filters.grupo ?? "");
+  // Revive Date fields — unstable_cache serializes them to strings on a cache hit.
+  for (const score of rows) {
+    if (score.match.fecha) score.match.fecha = reviveDate(score.match.fecha);
+  }
 
   const byDayParticipant = new Map<string, Map<string, number>>();
   const aliasById = new Map<string, string>();
