@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { revalidateTag } from "next/cache";
 import { calculateRanking } from "./ranking";
 import { scoreMatch, isGroupPhase } from "./scoreMatch";
 import { scoreGroups } from "./scoreGroups";
@@ -10,6 +11,7 @@ import type { GroupStandingInput } from "./types";
 import { recalculateTournamentEngine } from "./tournamentEngine";
 import { getTournamentBonusResult } from "./bonusResults";
 import { scoreBonus } from "./scoreBonus";
+import { RANKING_CACHE_TAG } from "@/lib/public/cache";
 
 export { isOfficialMatchForScoring } from "./matchStatus";
 
@@ -28,7 +30,24 @@ export function phaseGroupOf(fase: string | null | undefined, jornadaId: string 
   return fase;
 }
 
-export async function recalculateAll(prisma: PrismaClient, options: RecalculateAllOptions = {}) {
+// Only one recalculateAll() run at a time per process. This is a same-process
+// re-entrancy guard, not a distributed lock: it protects against two
+// overlapping invocations within the same serverless instance racing on the
+// same delete/recreate transaction (e.g. a slow run bleeding into the next
+// cron tick). It does nothing to prevent two separate serverless invocations
+// from racing — a true cross-invocation lock (DB advisory lock / status row)
+// would be needed for that, and is out of scope here.
+let inFlight: ReturnType<typeof recalculateAllInternal> | null = null;
+
+export function recalculateAll(prisma: PrismaClient, options: RecalculateAllOptions = {}) {
+  if (inFlight) return inFlight;
+  inFlight = recalculateAllInternal(prisma, options).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function recalculateAllInternal(prisma: PrismaClient, options: RecalculateAllOptions = {}) {
   const startedAt = new Date();
   const trigger = options.trigger ?? "manual";
   const eventMatch = options.matchId
@@ -471,6 +490,14 @@ export async function recalculateAll(prisma: PrismaClient, options: RecalculateA
         data: { status: "SUCCESS", finishedAt: new Date(), affectedParticipants: ranking.length }
       });
     });
+
+    // No-op outside a Next.js request context (e.g. the standalone scripts/*.ts
+    // CLI tools run via tsx), so this is wrapped defensively.
+    try {
+      revalidateTag(RANKING_CACHE_TAG);
+    } catch {
+      // ignore — not running inside a Next.js request
+    }
 
     return { runId: run.id, affectedParticipants: ranking.length, ranking };
   } catch (error) {

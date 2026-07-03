@@ -1,6 +1,8 @@
 ﻿
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
 
 export type PublicFilters = {
   alias?: string;
@@ -70,31 +72,35 @@ function clean(values: Array<string | null>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "es-ES"));
 }
 
-export async function getPublicFilterOptions(): Promise<PublicFilterOptions> {
-  const [rankings, matches, teams] = await Promise.all([
-    prisma.generalRanking.findMany({
-      select: { participant: { select: { alias: true, departamento: true, rango: true } } },
-      orderBy: { pos: "asc" }
-    }),
-    prisma.match.findMany({
-      select: { fase: true, jornadaId: true, grupo: true },
-      orderBy: [{ fase: "asc" }, { jornadaId: "asc" }]
-    }),
-    prisma.team.findMany({
-      select: { teamId: true, seleccion: true },
-      orderBy: { seleccion: "asc" }
-    })
-  ]);
+export const getPublicFilterOptions = unstable_cache(
+  async (): Promise<PublicFilterOptions> => {
+    const [rankings, matches, teams] = await Promise.all([
+      prisma.generalRanking.findMany({
+        select: { participant: { select: { alias: true, departamento: true, rango: true } } },
+        orderBy: { pos: "asc" }
+      }),
+      prisma.match.findMany({
+        select: { fase: true, jornadaId: true, grupo: true },
+        orderBy: [{ fase: "asc" }, { jornadaId: "asc" }]
+      }),
+      prisma.team.findMany({
+        select: { teamId: true, seleccion: true },
+        orderBy: { seleccion: "asc" }
+      })
+    ]);
 
-  return {
-    alias: clean(rankings.map((row) => row.participant.alias)),
-    departamento: clean(rankings.map((row) => row.participant.departamento)),
-    rango: clean(rankings.map((row) => row.participant.rango)),
-    fase: clean(matches.map((row) => row.fase)),
-    jornada: clean(matches.map((row) => row.jornadaId)),
-    grupo: clean(matches.map((row) => row.grupo)),
-    equipo: clean(teams.map((team) => formatCountry(team.teamId, team.seleccion)))
-  };
-}
+    return {
+      alias: clean(rankings.map((row) => row.participant.alias)),
+      departamento: clean(rankings.map((row) => row.participant.departamento)),
+      rango: clean(rankings.map((row) => row.participant.rango)),
+      fase: clean(matches.map((row) => row.fase)),
+      jornada: clean(matches.map((row) => row.jornadaId)),
+      grupo: clean(matches.map((row) => row.grupo)),
+      equipo: clean(teams.map((team) => formatCountry(team.teamId, team.seleccion)))
+    };
+  },
+  [RANKING_CACHE_TAG, "filter-options"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);
 
 

@@ -1,10 +1,13 @@
 ﻿
+import { unstable_cache } from "next/cache";
 import { MatchStatus } from "@prisma/client";
 import { formatCountry } from "@/lib/countries";
 import { prisma } from "@/lib/prisma";
 import type { PublicDashboardData, PublicParticipantProfile } from "./dto";
 import type { PublicFilters } from "./filters";
 import { toPublicClassificationRow } from "./mappers";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
+import { getLiveProvisionalOverlay } from "./liveOverlay";
 
 const emptyDashboard: PublicDashboardData = {
   leader: null,
@@ -44,9 +47,10 @@ function madridStartOfToday() {
   return new Date(`${madridDateKey()}T00:00:00.000Z`);
 }
 
-export async function getPublicDashboard(filters: PublicFilters = {}): Promise<PublicDashboardData> {
-  try {
-    const [classification, participantsCount, computedMatches, nextMatch, liveMatches] = await Promise.all([
+/** Official-results-only data — persisted `generalRanking`, invalidated via revalidateTag(RANKING_CACHE_TAG) when recalculateAll() commits. */
+const getCachedDashboardBase = unstable_cache(
+  async () => {
+    const [classification, participantsCount, computedMatches, nextMatch] = await Promise.all([
       prisma.generalRanking.findMany({
         orderBy: { pos: "asc" },
         include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } },
@@ -71,7 +75,18 @@ export async function getPublicDashboard(filters: PublicFilters = {}): Promise<P
           homeSlot: true,
           awaySlot: true
         }
-      }),
+      })
+    ]);
+    return { classification, participantsCount, computedMatches, nextMatch };
+  },
+  [RANKING_CACHE_TAG, "dashboard-base"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);
+
+export async function getPublicDashboard(filters: PublicFilters = {}): Promise<PublicDashboardData> {
+  try {
+    const [{ classification, participantsCount, computedMatches, nextMatch }, liveMatches, provisionalOverlay] = await Promise.all([
+      getCachedDashboardBase(),
       prisma.match.findMany({
         where: { status: MatchStatus.DRAFT },
         orderBy: [{ kickoffTime: "asc" }, { fecha: "asc" }, { matchNo: "asc" }],
@@ -91,9 +106,16 @@ export async function getPublicDashboard(filters: PublicFilters = {}): Promise<P
           awayGoals: true,
           resultText: true
         }
-      })
+      }),
+      getLiveProvisionalOverlay()
     ]);
     const ranking = classification
+      .map((row) => {
+        const delta = provisionalOverlay.get(row.participantId);
+        return delta
+          ? { ...row, pointsTotal: row.pointsTotal + delta.pointsDelta, pointsMatches: row.pointsMatches + delta.pointsDelta }
+          : row;
+      })
       .map(toPublicClassificationRow)
       .filter((row) => includes(row.alias, filters.alias))
       .filter((row) => includes(row.departamento, filters.departamento))

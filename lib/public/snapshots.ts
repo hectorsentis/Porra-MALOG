@@ -1,5 +1,7 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getMatchMadridDayKey, getMatchKickoffUtc } from "@/lib/utils/timezone";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
 
 export type MatchEventSnapshot = {
   snapshotId: string;
@@ -10,7 +12,9 @@ export type MatchEventSnapshot = {
   dayKey: string;
 };
 
-export async function getMatchEventSnapshots(): Promise<MatchEventSnapshot[]> {
+/** Purely derived from persisted ranking snapshots/matches — cached like the rest of the official-only data. */
+export const getMatchEventSnapshots = unstable_cache(
+  async (): Promise<MatchEventSnapshot[]> => {
   const [snapshots, matches] = await Promise.all([
     prisma.rankingSnapshot.findMany({
       where: { trigger: null, matchId: { not: null } },
@@ -50,4 +54,7 @@ export async function getMatchEventSnapshots(): Promise<MatchEventSnapshot[]> {
       const bMatch = matchById.get(b.matchId)!;
       return getMatchKickoffUtc(bMatch.fecha!, bMatch.hora).getTime() - getMatchKickoffUtc(aMatch.fecha!, aMatch.hora).getTime();
     });
-}
+  },
+  [RANKING_CACHE_TAG, "match-event-snapshots"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);

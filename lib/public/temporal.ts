@@ -1,7 +1,9 @@
 ﻿
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import type { PublicFilters } from "./filters";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -24,14 +26,18 @@ function isGroupPhase(fase: string | null | undefined) {
   return value.includes("grupo") || value.includes("group");
 }
 
-async function availableOfficialDays() {
-  const matches = await prisma.match.findMany({
-    where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
-    select: { fecha: true },
-    orderBy: { fecha: "asc" }
-  });
-  return [...new Set(matches.map((match) => match.fecha ? isoDay(match.fecha) : null).filter((value): value is string => Boolean(value)))];
-}
+const availableOfficialDays = unstable_cache(
+  async () => {
+    const matches = await prisma.match.findMany({
+      where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
+      select: { fecha: true },
+      orderBy: { fecha: "asc" }
+    });
+    return [...new Set(matches.map((match) => match.fecha ? isoDay(match.fecha) : null).filter((value): value is string => Boolean(value)))];
+  },
+  [RANKING_CACHE_TAG, "official-days"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);
 
 export async function getTemporalFilterOptions() {
   const days = await availableOfficialDays();
@@ -55,6 +61,31 @@ export type TemporalRankingRow = {
   matchesCount: number;
 };
 
+const getCachedTemporalScoring = unstable_cache(
+  async (startDay: string, endDay: string) =>
+    prisma.scoringMatch.findMany({
+      where: {
+        match: {
+          status: "OFFICIAL",
+          finished: true,
+          fecha: { gte: new Date(`${startDay}T00:00:00.000Z`), lte: new Date(`${endDay}T23:59:59.999Z`) }
+        }
+      },
+      select: {
+        participantId: true,
+        exactOk: true,
+        diffOk: true,
+        signOk: true,
+        cruceExactoOk: true,
+        pointsTotal: true,
+        participant: { select: { alias: true, slug: true, departamento: true, rango: true } },
+        match: { select: { fase: true } }
+      }
+    }),
+  [RANKING_CACHE_TAG, "temporal-scoring"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);
+
 export async function getTemporalClassification(filters: PublicFilters, mode: "daily" | "weekly") {
   const options = await getTemporalFilterOptions();
   const selectedDay = filters.fecha ?? options.latestDay;
@@ -62,25 +93,7 @@ export async function getTemporalClassification(filters: PublicFilters, mode: "d
 
   const startDay = mode === "weekly" ? addDays(selectedDay, -6) : selectedDay;
   const endDay = selectedDay;
-  const rows = await prisma.scoringMatch.findMany({
-    where: {
-      match: {
-        status: "OFFICIAL",
-        finished: true,
-        fecha: { gte: new Date(`${startDay}T00:00:00.000Z`), lte: new Date(`${endDay}T23:59:59.999Z`) }
-      }
-    },
-    select: {
-      participantId: true,
-      exactOk: true,
-      diffOk: true,
-      signOk: true,
-      cruceExactoOk: true,
-      pointsTotal: true,
-      participant: { select: { alias: true, slug: true, departamento: true, rango: true } },
-      match: { select: { fase: true } }
-    }
-  });
+  const rows = await getCachedTemporalScoring(startDay, endDay);
 
   const byParticipant = new Map<string, Omit<TemporalRankingRow, "pos">>();
   for (const score of rows) {
@@ -132,30 +145,37 @@ export type DailyEvolutionRow = {
   topPoints: number;
 };
 
+const getCachedEvolutionScoring = unstable_cache(
+  async (fase: string, jornada: string, grupo: string) =>
+    prisma.scoringMatch.findMany({
+      where: {
+        match: {
+          status: "OFFICIAL",
+          finished: true,
+          fecha: { not: null },
+          ...(fase ? { fase: { contains: fase, mode: "insensitive" } } : {}),
+          ...(jornada ? { jornadaId: { contains: jornada, mode: "insensitive" } } : {}),
+          ...(grupo ? { grupo: { contains: grupo, mode: "insensitive" } } : {})
+        }
+      },
+      select: {
+        participantId: true,
+        exactOk: true,
+        diffOk: true,
+        signOk: true,
+        cruceExactoOk: true,
+        pointsTotal: true,
+        participant: { select: { alias: true, departamento: true, rango: true } },
+        match: { select: { fecha: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true } }
+      },
+      orderBy: { match: { fecha: "asc" } }
+    }),
+  [RANKING_CACHE_TAG, "evolution-scoring"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);
+
 export async function getDailyEvolution(filters: PublicFilters) {
-  const rows = await prisma.scoringMatch.findMany({
-    where: {
-      match: {
-        status: "OFFICIAL",
-        finished: true,
-        fecha: { not: null },
-        ...(filters.fase ? { fase: { contains: filters.fase, mode: "insensitive" } } : {}),
-        ...(filters.jornada ? { jornadaId: { contains: filters.jornada, mode: "insensitive" } } : {}),
-        ...(filters.grupo ? { grupo: { contains: filters.grupo, mode: "insensitive" } } : {})
-      }
-    },
-    select: {
-      participantId: true,
-      exactOk: true,
-      diffOk: true,
-      signOk: true,
-      cruceExactoOk: true,
-      pointsTotal: true,
-      participant: { select: { alias: true, departamento: true, rango: true } },
-      match: { select: { fecha: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true } }
-    },
-    orderBy: { match: { fecha: "asc" } }
-  });
+  const rows = await getCachedEvolutionScoring(filters.fase ?? "", filters.jornada ?? "", filters.grupo ?? "");
 
   const byDay = new Map<string, DailyEvolutionRow & { byParticipant: Map<string, number> }>();
   for (const score of rows) {
@@ -213,26 +233,33 @@ export type ParticipantEvolutionPoint = {
   [alias: string]: string | number;
 };
 
+const getCachedParticipantEvolutionScoring = unstable_cache(
+  async (fase: string, jornada: string, grupo: string) =>
+    prisma.scoringMatch.findMany({
+      where: {
+        match: {
+          status: "OFFICIAL",
+          finished: true,
+          fecha: { not: null },
+          ...(fase ? { fase: { contains: fase, mode: "insensitive" } } : {}),
+          ...(jornada ? { jornadaId: { contains: jornada, mode: "insensitive" } } : {}),
+          ...(grupo ? { grupo: { contains: grupo, mode: "insensitive" } } : {})
+        }
+      },
+      select: {
+        participantId: true,
+        pointsTotal: true,
+        participant: { select: { alias: true, departamento: true, rango: true } },
+        match: { select: { fecha: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true } }
+      },
+      orderBy: { match: { fecha: "asc" } }
+    }),
+  [RANKING_CACHE_TAG, "participant-evolution-scoring"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);
+
 export async function getParticipantPointsEvolution(filters: PublicFilters) {
-  const rows = await prisma.scoringMatch.findMany({
-    where: {
-      match: {
-        status: "OFFICIAL",
-        finished: true,
-        fecha: { not: null },
-        ...(filters.fase ? { fase: { contains: filters.fase, mode: "insensitive" } } : {}),
-        ...(filters.jornada ? { jornadaId: { contains: filters.jornada, mode: "insensitive" } } : {}),
-        ...(filters.grupo ? { grupo: { contains: filters.grupo, mode: "insensitive" } } : {})
-      }
-    },
-    select: {
-      participantId: true,
-      pointsTotal: true,
-      participant: { select: { alias: true, departamento: true, rango: true } },
-      match: { select: { fecha: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true } }
-    },
-    orderBy: { match: { fecha: "asc" } }
-  });
+  const rows = await getCachedParticipantEvolutionScoring(filters.fase ?? "", filters.jornada ?? "", filters.grupo ?? "");
 
   const byDayParticipant = new Map<string, Map<string, number>>();
   const aliasById = new Map<string, string>();

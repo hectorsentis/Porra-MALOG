@@ -86,10 +86,10 @@ describe("scoreMatch", () => {
     expect(score.cruceExactoOk).toBe(true);
     expect(score.spainMatch).toBe(true);
     expect(score.multiplier).toBe(2);
-    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing);
+    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing * defaultRules.spainMultiplier);
   });
 
-  it("scores exact KO crossing with reversed team order", () => {
+  it("scores exact KO crossing with reversed team order (Spain ×2)", () => {
     const score = scoreMatch(
       {
         participantId: "P1",
@@ -110,7 +110,7 @@ describe("scoreMatch", () => {
     );
 
     expect(score.cruceExactoOk).toBe(true);
-    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing);
+    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing * defaultRules.spainMultiplier);
   });
 
   it("does not score exact crossing for group-stage matches", () => {
@@ -188,6 +188,61 @@ describe("scoreMatch", () => {
 
     expect(score.qualifiedOk).toBe(false);
     expect(score.pointsQualified).toBe(0);
+  });
+
+  it("applies spainMultiplier to qualifiedOk points in KO Spain match", () => {
+    const score = scoreMatch(
+      { participantId: "P1", matchId: "M1", fase: "R32", predQualifiedTeamId: "ESP" },
+      {
+        matchId: "M1",
+        fase: "R32",
+        homeTeamId: "ESP",
+        awayTeamId: "FRA",
+        homeGoals: 1,
+        awayGoals: 0,
+        finished: true,
+        qualifiedTeamId: "ESP"
+      }
+    );
+
+    expect(score.qualifiedOk).toBe(true);
+    expect(score.spainMatch).toBe(true);
+    expect(score.pointsQualified).toBe(defaultRules.koR32Qualified * defaultRules.spainMultiplier);
+  });
+
+  it("applies spainMultiplier to cruceExacto + qualifiedOk when both score in KO Spain match", () => {
+    const score = scoreMatch(
+      {
+        participantId: "P1",
+        matchId: "M1",
+        fase: "R32",
+        predHomeTeamId: "ESP",
+        predAwayTeamId: "FRA",
+        predHomeGoals: 1,
+        predAwayGoals: 0,
+        predQualifiedTeamId: "ESP"
+      },
+      {
+        matchId: "M1",
+        fase: "R32",
+        homeTeamId: "ESP",
+        awayTeamId: "FRA",
+        homeGoals: 1,
+        awayGoals: 0,
+        finished: true,
+        qualifiedTeamId: "ESP"
+      }
+    );
+
+    expect(score.qualifiedOk).toBe(true);
+    expect(score.cruceExactoOk).toBe(true);
+    expect(score.spainMatch).toBe(true);
+    expect(score.pointsQualified).toBe(defaultRules.koR32Qualified * defaultRules.spainMultiplier);
+    expect(score.pointsCruceExacto).toBe(defaultRules.exactCrossing * defaultRules.spainMultiplier);
+    expect(score.pointsTotal).toBe(
+      defaultRules.koR32Qualified * defaultRules.spainMultiplier +
+      defaultRules.exactCrossing * defaultRules.spainMultiplier
+    );
   });
 });
 

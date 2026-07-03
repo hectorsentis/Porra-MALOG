@@ -61,13 +61,21 @@ export async function runApiFootballLivePoll(now = new Date()) {
     const { changed, isFinished } = await applyFixtureResult(sync, fixture, now, "api-football");
     if (!changed) continue;
 
-    await recalculateAll(prisma, {
-      trigger: isFinished ? "official-result" : "live-update",
-      matchId: sync.matchId,
-      createdBy: "api-football"
-    });
+    // recalculateAll() only ever runs once a match goes OFFICIAL — it's the
+    // authoritative/"emergency" recalculation, not something to run on every
+    // goal. In-play score changes are already persisted to Match by
+    // applyFixtureResult() above; "draft points" for those are computed on
+    // the fly at read time (see lib/public/liveOverlay.ts) instead of being
+    // written here.
+    if (isFinished) {
+      await recalculateAll(prisma, {
+        trigger: "official-result",
+        matchId: sync.matchId,
+        createdBy: "api-football"
+      });
+      finalized += 1;
+    }
     updated += 1;
-    if (isFinished) finalized += 1;
   }
 
   return { skipped: false, activation, newlyLinked, budget: await getApiFootballBudget(), polled: active.length, updated, finalized };

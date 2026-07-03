@@ -87,11 +87,12 @@ export function scoreMatch(
   );
   const spainMatch = isSpainMatch(result);
   const multiplier = koPhase ? knockoutMultiplier(result.fase ?? bet.fase) : spainMatch ? rules.spainMultiplier : 1;
+  const spainKoMultiplier = koPhase && spainMatch ? rules.spainMultiplier : 1;
 
   const baseResultPoints = exactOk ? rules.exactScore : diffOk ? rules.correctGoalDiff : signOk ? rules.correctSign : 0;
   const pointsResult = groupPhase ? baseResultPoints * multiplier : 0;
-  const pointsQualified = qualifiedOk ? knockoutQualifiedPoints(result.fase, rules) : 0;
-  const pointsCruceExacto = cruceExactoOk ? rules.exactCrossing : 0;
+  const pointsQualified = qualifiedOk ? knockoutQualifiedPoints(result.fase, rules) * spainKoMultiplier : 0;
+  const pointsCruceExacto = cruceExactoOk ? rules.exactCrossing * spainKoMultiplier : 0;
 
   return {
     betId: bet.betId,

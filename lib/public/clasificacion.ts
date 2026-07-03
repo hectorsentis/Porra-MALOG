@@ -1,4 +1,5 @@
-﻿
+
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
 import { getMatchMadridDayKey } from "@/lib/utils/timezone";
@@ -7,6 +8,8 @@ import { getMatchEventSnapshots } from "./snapshots";
 import { toPublicClassificationRow } from "./mappers";
 import type { PublicClassificationRow } from "./dto";
 import type { PublicFilters } from "./filters";
+import { RANKING_CACHE_REVALIDATE_SECONDS, RANKING_CACHE_TAG } from "./cache";
+import { getLiveProvisionalOverlay } from "./liveOverlay";
 
 function includes(value: string | null | undefined, filter: string | undefined) {
   if (!filter) return true;
@@ -58,39 +61,92 @@ export type ClassificationOverview = {
   topPhaseGainer: { alias: string; deltaPosPhase: number } | null;
 };
 
-export async function getClassificationOverview(filters: PublicFilters = {}): Promise<ClassificationOverview> {
+/**
+ * Official-results-only data. None of this depends on live/in-progress match
+ * state, so it's safe to cache and invalidate only via revalidateTag(RANKING_CACHE_TAG)
+ * from recalculateAll() — never on every live score change.
+ */
+const getCachedClassificationBase = unstable_cache(
+  async () => {
+    const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, draftMatchesCount, matchEvents] = await Promise.all([
+      prisma.generalRanking.findMany({
+        orderBy: { pos: "asc" },
+        include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } }
+      }),
+      prisma.scoringMatch.groupBy({ by: ["participantId"], _count: { _all: true } }),
+      prisma.scoringMatch.findMany({
+        where: { match: { fecha: { not: null } } },
+        select: {
+          participantId: true,
+          pointsTotal: true,
+          exactOk: true,
+          signOk: true,
+          betId: true,
+          match: {
+            select: { fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true, status: true }
+          }
+        },
+        orderBy: [{ match: { fecha: "desc" } }, { match: { matchNo: "desc" } }]
+      }),
+      prisma.rankingSnapshot.findFirst({
+        where: { trigger: "phase-start" },
+        orderBy: { createdAt: "desc" },
+        select: { phaseGroup: true }
+      }),
+      prisma.match.findMany({
+        where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
+        select: { fecha: true }
+      }),
+      prisma.match.count({ where: { status: "DRAFT" } }),
+      getMatchEventSnapshots()
+    ]);
 
-  const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, draftMatchesCount, matchEvents, liveMatchRow] = await Promise.all([
-    prisma.generalRanking.findMany({
-      orderBy: { pos: "asc" },
-      include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } }
-    }),
-    prisma.scoringMatch.groupBy({ by: ["participantId"], _count: { _all: true } }),
-    prisma.scoringMatch.findMany({
-      where: { match: { fecha: { not: null } } },
-      select: {
-        participantId: true,
-        pointsTotal: true,
-        exactOk: true,
-        signOk: true,
-        betId: true,
-        match: {
-          select: { fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true, status: true }
-        }
-      },
-      orderBy: [{ match: { fecha: "desc" } }, { match: { matchNo: "desc" } }]
-    }),
-    prisma.rankingSnapshot.findFirst({
-      where: { trigger: "phase-start" },
-      orderBy: { createdAt: "desc" },
-      select: { phaseGroup: true }
-    }),
-    prisma.match.findMany({
-      where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
-      select: { fecha: true }
-    }),
-    prisma.match.count({ where: { status: "DRAFT" } }),
-    getMatchEventSnapshots(),
+    const currentDayKey = matchEvents[0]?.dayKey ?? null;
+    const previousDaySnapshot = matchEvents.find((event) => currentDayKey != null && event.dayKey !== currentDayKey) ?? null;
+    const previousDayPosRows = previousDaySnapshot
+      ? await prisma.rankingSnapshotRow.findMany({
+          where: { snapshotId: previousDaySnapshot.snapshotId },
+          select: { participantId: true, pos: true }
+        })
+      : [];
+
+    const scoringByParticipant = new Map<string, typeof scoringRows>();
+    for (const row of scoringRows) {
+      const list = scoringByParticipant.get(row.participantId) ?? [];
+      list.push(row);
+      scoringByParticipant.set(row.participantId, list);
+    }
+    const lastBetIds = [...scoringByParticipant.values()]
+      .map((rows) => rows[0]?.betId)
+      .filter((betId): betId is string => Boolean(betId));
+    const lastBets = lastBetIds.length
+      ? await prisma.betMatch.findMany({
+          where: { betId: { in: lastBetIds } },
+          select: { betId: true, predHomeGoals: true, predAwayGoals: true }
+        })
+      : [];
+
+    return {
+      generalRanking,
+      matchCounts,
+      scoringRows,
+      phaseSnapshot,
+      officialMatches,
+      draftMatchesCount,
+      matchEvents,
+      currentDayKey,
+      previousDaySnapshot,
+      previousDayPosRows,
+      lastBets
+    };
+  },
+  [RANKING_CACHE_TAG, "classification-base"],
+  { revalidate: RANKING_CACHE_REVALIDATE_SECONDS, tags: [RANKING_CACHE_TAG] }
+);
+
+export async function getClassificationOverview(filters: PublicFilters = {}): Promise<ClassificationOverview> {
+  const [cached, liveMatchRow, provisionalOverlay] = await Promise.all([
+    getCachedClassificationBase(),
     prisma.match.findFirst({
       where: { status: "DRAFT" },
       select: {
@@ -102,8 +158,21 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
         resultText: true,
         apiFootballSync: { select: { lastStatus: true } }
       }
-    })
+    }),
+    getLiveProvisionalOverlay()
   ]);
+  const {
+    generalRanking,
+    matchCounts,
+    scoringRows,
+    phaseSnapshot,
+    officialMatches,
+    draftMatchesCount,
+    currentDayKey,
+    previousDaySnapshot,
+    previousDayPosRows,
+    lastBets
+  } = cached;
 
   const liveMatch: LiveMatchInfo | null = liveMatchRow
     ? {
@@ -117,23 +186,9 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
       }
     : null;
 
-  const currentDayKey = matchEvents[0]?.dayKey ?? null;
-  const previousDaySnapshot = matchEvents.find((event) => currentDayKey != null && event.dayKey !== currentDayKey) ?? null;
+  const previousDayPosByParticipant = previousDaySnapshot ? new Map(previousDayPosRows.map((row) => [row.participantId, row.pos])) : null;
 
-  const previousDayPosByParticipant = previousDaySnapshot
-    ? new Map(
-        (
-          await prisma.rankingSnapshotRow.findMany({
-            where: { snapshotId: previousDaySnapshot.snapshotId },
-            select: { participantId: true, pos: true }
-          })
-        ).map((row) => [row.participantId, row.pos])
-      )
-    : null;
-
-  const dayBaselineLabel = previousDaySnapshot
-    ? `el cierre del ${formatDayKeyEsLabel(previousDaySnapshot.dayKey)}`
-    : "—";
+  const dayBaselineLabel = previousDaySnapshot ? `el cierre del ${formatDayKeyEsLabel(previousDaySnapshot.dayKey)}` : "—";
 
   const matchesCountByParticipant = new Map(matchCounts.map((entry) => [entry.participantId, entry._count._all]));
 
@@ -145,30 +200,13 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
   }
 
   const pointsTodayByParticipant = new Map<string, number>();
-  const provisionalPointsByParticipant = new Map<string, number>();
-  const provisionalPointsTodayByParticipant = new Map<string, number>();
   for (const row of scoringRows) {
     const isToday = Boolean(row.match.fecha && currentDayKey != null && getMatchMadridDayKey(row.match.fecha) === currentDayKey);
     if (isToday) {
       pointsTodayByParticipant.set(row.participantId, (pointsTodayByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
     }
-    if (row.match.status === "DRAFT") {
-      provisionalPointsByParticipant.set(row.participantId, (provisionalPointsByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
-      if (isToday) {
-        provisionalPointsTodayByParticipant.set(row.participantId, (provisionalPointsTodayByParticipant.get(row.participantId) ?? 0) + row.pointsTotal);
-      }
-    }
   }
 
-  const lastBetIds = [...scoringByParticipant.values()]
-    .map((rows) => rows[0]?.betId)
-    .filter((betId): betId is string => Boolean(betId));
-  const lastBets = lastBetIds.length
-    ? await prisma.betMatch.findMany({
-        where: { betId: { in: lastBetIds } },
-        select: { betId: true, predHomeGoals: true, predAwayGoals: true }
-      })
-    : [];
   const lastBetByBetId = new Map(lastBets.map((bet) => [bet.betId!, bet]));
 
   const rows: ClassificationOverviewRow[] = generalRanking
@@ -206,17 +244,21 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
       const previousDayPos = previousDayPosByParticipant?.get(row.participantId);
       const deltaPosDay = previousDayPos != null ? previousDayPos - row.pos : null;
 
+      const provisionalDelta = provisionalOverlay.get(row.participantId)?.pointsDelta ?? 0;
+
       return {
         ...base,
+        pointsTotal: base.pointsTotal + provisionalDelta,
+        pointsMatches: base.pointsMatches + provisionalDelta,
         deltaPosDay,
         matchesCount,
         exactScores: row.exactScores,
         ganadores,
         fallos,
         pctAcierto,
-        pointsToday: pointsTodayByParticipant.get(row.participantId) ?? 0,
-        provisionalPoints: provisionalPointsByParticipant.get(row.participantId) ?? 0,
-        provisionalPointsToday: provisionalPointsTodayByParticipant.get(row.participantId) ?? 0,
+        pointsToday: (pointsTodayByParticipant.get(row.participantId) ?? 0) + provisionalDelta,
+        provisionalPoints: provisionalDelta,
+        provisionalPointsToday: provisionalDelta,
         lastMatch,
         racha
       };
