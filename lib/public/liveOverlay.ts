@@ -44,6 +44,7 @@ export async function getLiveProvisionalOverlay(): Promise<Map<string, LiveProvi
   if (liveMatches.length === 0) return new Map();
 
   const matchIds = [...liveMatches.map((match) => match.matchId)].sort();
-  const [bets, rules] = await Promise.all([getCachedBetsForMatches(matchIds), getActiveGameRules()]);
+  const bets = await getCachedBetsForMatches(matchIds);
+  const rules = await getActiveGameRules();
   return computeLiveProvisionalDeltas(liveMatches, bets, rules);
 }

@@ -233,11 +233,9 @@ export default async function AdminResultadosPage() {
   const previewsByMatch = new Map<string, PreviewRow[]>();
   if (draftMatches.length > 0) {
     const draftMatchIds = draftMatches.map((match) => match.matchId);
-    const [rules, bets, participants] = await Promise.all([
-      getActiveGameRules(),
-      prisma.betMatch.findMany({ where: { matchId: { in: draftMatchIds } } }),
-      prisma.participant.findMany({ select: { participantId: true, alias: true } })
-    ]);
+    const rules = await getActiveGameRules();
+    const bets = await prisma.betMatch.findMany({ where: { matchId: { in: draftMatchIds } } });
+    const participants = await prisma.participant.findMany({ select: { participantId: true, alias: true } });
     const aliasById = new Map(participants.map((participant) => [participant.participantId, participant.alias]));
     const betsByMatch = new Map<string, typeof bets>();
     for (const bet of bets) {

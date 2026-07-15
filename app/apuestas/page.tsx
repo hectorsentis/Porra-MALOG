@@ -203,11 +203,9 @@ export default async function ApuestasPage({
 }) {
   const filters = parsePublicFilters(await searchParams);
   const activeTab = filters.tab && ["bonus", "grupos", "clasificacion"].includes(filters.tab) ? filters.tab : "bonus";
-  const [bonus, groupMatches, groupClassification] = await Promise.all([
-    activeTab === "bonus" ? getBonusBetInsights(filters) : Promise.resolve(null),
-    activeTab === "grupos" ? getGroupMatchBetInsights(filters) : Promise.resolve(null),
-    activeTab === "clasificacion" ? getGroupClassificationBetInsights(filters) : Promise.resolve(null)
-  ]);
+  const bonus = activeTab === "bonus" ? await getBonusBetInsights(filters) : null;
+  const groupMatches = activeTab === "grupos" ? await getGroupMatchBetInsights(filters) : null;
+  const groupClassification = activeTab === "clasificacion" ? await getGroupClassificationBetInsights(filters) : null;
   const bonusCharts = bonus ? [
     ["Campeon", bonus.champions],
     ["Subcampeon", bonus.runnerUps],
@@ -304,7 +302,6 @@ export default async function ApuestasPage({
     </PublicShell>
   );
 }
-
 
 
 

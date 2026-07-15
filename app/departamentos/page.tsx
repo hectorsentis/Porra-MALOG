@@ -17,7 +17,8 @@ export default async function DepartamentosPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const filters = parsePublicFilters(await searchParams);
-  const [data, stats] = await Promise.all([getPublicDashboard(filters), getAdvancedStatistics(filters)]);
+  const data = await getPublicDashboard(filters);
+  const stats = await getAdvancedStatistics(filters);
   return (
     <PublicShell>
       <PageTitle title="Departamentos" subtitle="Medias, volumen de participantes y rendimiento por unidad y rango." />

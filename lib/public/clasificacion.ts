@@ -67,37 +67,35 @@ export type ClassificationOverview = {
  */
 const getCachedClassificationBase = unstable_cache(
   async () => {
-    const [generalRanking, matchCounts, scoringRows, phaseSnapshot, officialMatches, draftMatchesCount] = await Promise.all([
-      prisma.generalRanking.findMany({
-        orderBy: { pos: "asc" },
-        include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } }
-      }),
-      prisma.scoringMatch.groupBy({ by: ["participantId"], _count: { _all: true } }),
-      prisma.scoringMatch.findMany({
-        where: { match: { fecha: { not: null } } },
-        select: {
-          participantId: true,
-          pointsTotal: true,
-          exactOk: true,
-          signOk: true,
-          betId: true,
-          match: {
-            select: { fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true, status: true }
-          }
-        },
-        orderBy: [{ match: { fecha: "desc" } }, { match: { matchNo: "desc" } }]
-      }),
-      prisma.rankingSnapshot.findFirst({
-        where: { trigger: "phase-start" },
-        orderBy: { createdAt: "desc" },
-        select: { phaseGroup: true }
-      }),
-      prisma.match.findMany({
-        where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
-        select: { fecha: true }
-      }),
-      prisma.match.count({ where: { status: "DRAFT" } })
-    ]);
+    const generalRanking = await prisma.generalRanking.findMany({
+      orderBy: { pos: "asc" },
+      include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } }
+    });
+    const matchCounts = await prisma.scoringMatch.groupBy({ by: ["participantId"], _count: { _all: true } });
+    const scoringRows = await prisma.scoringMatch.findMany({
+      where: { match: { fecha: { not: null } } },
+      select: {
+        participantId: true,
+        pointsTotal: true,
+        exactOk: true,
+        signOk: true,
+        betId: true,
+        match: {
+          select: { fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, homeGoals: true, awayGoals: true, status: true }
+        }
+      },
+      orderBy: [{ match: { fecha: "desc" } }, { match: { matchNo: "desc" } }]
+    });
+    const phaseSnapshot = await prisma.rankingSnapshot.findFirst({
+      where: { trigger: "phase-start" },
+      orderBy: { createdAt: "desc" },
+      select: { phaseGroup: true }
+    });
+    const officialMatches = await prisma.match.findMany({
+      where: { status: "OFFICIAL", finished: true, fecha: { not: null } },
+      select: { fecha: true }
+    });
+    const draftMatchesCount = await prisma.match.count({ where: { status: "DRAFT" } });
 
     const scoringByParticipant = new Map<string, typeof scoringRows>();
     for (const row of scoringRows) {
@@ -158,23 +156,21 @@ export async function getClassificationOverview(filters: PublicFilters = {}): Pr
   // so the baseline lookup has to use the same day key to actually find it.
   const dayStartKey = getEstDayKey();
 
-  const [cached, liveMatchRow, provisionalOverlay, dayStartSnapshot] = await Promise.all([
-    getCachedClassificationBase(),
-    prisma.match.findFirst({
-      where: { status: "DRAFT" },
-      select: {
-        matchId: true,
-        homeTeam: true,
-        awayTeam: true,
-        homeTeamId: true,
-        awayTeamId: true,
-        resultText: true,
-        apiFootballSync: { select: { lastStatus: true } }
-      }
-    }),
-    getLiveProvisionalOverlay(),
-    getCachedDayStartSnapshot(dayStartKey)
-  ]);
+  const cached = await getCachedClassificationBase();
+  const liveMatchRow = await prisma.match.findFirst({
+    where: { status: "DRAFT" },
+    select: {
+      matchId: true,
+      homeTeam: true,
+      awayTeam: true,
+      homeTeamId: true,
+      awayTeamId: true,
+      resultText: true,
+      apiFootballSync: { select: { lastStatus: true } }
+    }
+  });
+  const provisionalOverlay = await getLiveProvisionalOverlay();
+  const dayStartSnapshot = await getCachedDayStartSnapshot(dayStartKey);
   const {
     generalRanking,
     matchCounts,

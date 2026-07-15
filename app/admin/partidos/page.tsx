@@ -10,8 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPartidosPage({ searchParams }: { searchParams: Promise<{ linked?: string; skipped?: string }> }) {
   const session = await requireAdminForPath("/admin/partidos");
   const params = await searchParams;
-  const [matches, teams] = await Promise.all([
-    prisma.match.findMany({
+  const matches = await prisma.match.findMany({
       orderBy: [{ fecha: "asc" }, { matchNo: "asc" }],
       take: 120,
       select: {
@@ -27,9 +26,8 @@ export default async function AdminPartidosPage({ searchParams }: { searchParams
         awayTeam: true,
         status: true
       }
-    }),
-    prisma.team.findMany({ orderBy: [{ grupo: "asc" }, { seleccion: "asc" }], select: { teamId: true, seleccion: true } })
-  ]);
+    });
+  const teams = await prisma.team.findMany({ orderBy: [{ grupo: "asc" }, { seleccion: "asc" }], select: { teamId: true, seleccion: true } });
 
   return (
     <AdminShell>

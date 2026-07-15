@@ -16,7 +16,7 @@
  * revalidate window than the ranking data itself.
  */
 export const RANKING_CACHE_TAG = "ranking-data";
-export const RANKING_CACHE_REVALIDATE_SECONDS = 60;
+export const RANKING_CACHE_REVALIDATE_SECONDS = 300;
 
 export const LIVE_BETS_CACHE_TAG = "live-bets";
 export const LIVE_BETS_CACHE_REVALIDATE_SECONDS = 300;

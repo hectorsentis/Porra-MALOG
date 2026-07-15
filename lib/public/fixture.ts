@@ -103,33 +103,31 @@ function statusLabel(status: string) {
 
 export async function getFixtureOverview() {
   const db = prisma as unknown as FixtureDb;
-  const [standings, thirds, matches, teams, bonus] = await Promise.all([
-    db.tournamentGroupStanding.findMany({ orderBy: [{ grupo: "asc" }, { pos: "asc" }] }),
-    db.tournamentThirdPlace.findMany({ orderBy: [{ rank3rd: "asc" }, { grupo: "asc" }] }),
-    prisma.match.findMany({
-      where: { fase: { not: "GRUPOS" } },
-      orderBy: [{ fecha: "asc" }, { matchNo: "asc" }],
-      select: {
-        matchId: true,
-        matchNo: true,
-        fase: true,
-        homeSlot: true,
-        awaySlot: true,
-        homeTeamId: true,
-        awayTeamId: true,
-        homeTeam: true,
-        awayTeam: true,
-        resultText: true,
-        homeGoals: true,
-        awayGoals: true,
-        qualifiedTeamId: true,
-        overrideQualifiedTeamId: true,
-        status: true
-      }
-    }),
-    prisma.team.findMany({ select: { teamId: true, seleccion: true } }),
-    getTournamentBonusResult(prisma)
-  ]);
+  const standings = await db.tournamentGroupStanding.findMany({ orderBy: [{ grupo: "asc" }, { pos: "asc" }] });
+  const thirds = await db.tournamentThirdPlace.findMany({ orderBy: [{ rank3rd: "asc" }, { grupo: "asc" }] });
+  const matches = await prisma.match.findMany({
+    where: { fase: { not: "GRUPOS" } },
+    orderBy: [{ fecha: "asc" }, { matchNo: "asc" }],
+    select: {
+      matchId: true,
+      matchNo: true,
+      fase: true,
+      homeSlot: true,
+      awaySlot: true,
+      homeTeamId: true,
+      awayTeamId: true,
+      homeTeam: true,
+      awayTeam: true,
+      resultText: true,
+      homeGoals: true,
+      awayGoals: true,
+      qualifiedTeamId: true,
+      overrideQualifiedTeamId: true,
+      status: true
+    }
+  });
+  const teams = await prisma.team.findMany({ select: { teamId: true, seleccion: true } });
+  const bonus = await getTournamentBonusResult(prisma, { cachedOverride: true });
 
   const teamNameById = new Map(teams.map((team) => [team.teamId, team.seleccion]));
   const name = (teamId: string | null, fallback: string | null) => formatCountry(teamId, fallback ?? (teamId ? teamNameById.get(teamId) : null) ?? "Por resolver");

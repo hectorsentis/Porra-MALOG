@@ -25,7 +25,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ skipped: true, reason: "no-match-in-window", checkedAt: now.toISOString() });
     }
   } catch {
-    // If cache read fails, proceed with full poll to be safe
+    return NextResponse.json(
+      { skipped: true, reason: "database-unavailable", checkedAt: now.toISOString() },
+      { status: 503 }
+    );
   }
 
   try {

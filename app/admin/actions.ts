@@ -347,6 +347,8 @@ export async function saveTournamentBonusAction(formData: FormData) {
   } catch {
     // Bonus save is owned by Supabase; lack of legacy log access must not undo it.
   }
+  revalidatePath("/fixture");
+  revalidatePath("/admin/bonus");
   redirect("/admin/bonus?saved=1");
 }
 

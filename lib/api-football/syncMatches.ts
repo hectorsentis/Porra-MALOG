@@ -167,17 +167,22 @@ export async function syncApiFootballMatchIds() {
   // For unlinked matches with a known hora, pre-compute kickoffTime so
   // ensureLiveMatchesActive can activate them at the right moment even when
   // API-Football hasn't provided a fixture yet.
-  const kickoffUpdates: Promise<unknown>[] = [];
+  const kickoffUpdates: Array<{ matchId: string; kickoffTime: Date }> = [];
   for (const match of matches) {
     if (match.apiFootballId != null) continue;
     if (!match.fecha || !match.hora) continue;
     const horaKickoff = getMatchKickoffUtc(match.fecha, match.hora);
     if (Number.isNaN(horaKickoff.getTime())) continue;
     if (!match.kickoffTime || Math.abs(horaKickoff.getTime() - match.kickoffTime.getTime()) > 60_000) {
-      kickoffUpdates.push(prisma.match.update({ where: { matchId: match.matchId }, data: { kickoffTime: horaKickoff } }));
+      kickoffUpdates.push({ matchId: match.matchId, kickoffTime: horaKickoff });
     }
   }
-  await Promise.all(kickoffUpdates);
+  for (const update of kickoffUpdates) {
+    await prisma.match.update({
+      where: { matchId: update.matchId },
+      data: { kickoffTime: update.kickoffTime }
+    });
+  }
   const kickoffPrecomputed = kickoffUpdates.length;
 
   const finalized = await finalizeStaleMatches();

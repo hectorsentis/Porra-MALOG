@@ -15,6 +15,7 @@
     "import:excel:dry-run": "tsx scripts/import-excel.ts --dry-run",
     "seed:third-combos": "tsx scripts/seed-third-place-combos.ts",
     "recalculate:tournament": "tsx scripts/recalculate-tournament.ts",
+    "health:db": "tsx scripts/check-db-health.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

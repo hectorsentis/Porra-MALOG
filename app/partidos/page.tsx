@@ -63,7 +63,8 @@ function statusClass(status: string) {
 
 export default async function PartidosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const filters = parsePublicFilters(await searchParams);
-  const [matches, options] = await Promise.all([getPublicMatches(filters), getMatchFilterOptions()]);
+  const matches = await getPublicMatches(filters);
+  const options = await getMatchFilterOptions();
   const hasLive = matches.some((match) => match.status === "DRAFT");
 
   return (

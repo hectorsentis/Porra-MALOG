@@ -14,16 +14,14 @@ export type MatchEventSnapshot = {
 
 const getCachedMatchEventSnapshots = unstable_cache(
   async (): Promise<MatchEventSnapshot[]> => {
-  const [snapshots, matches] = await Promise.all([
-    prisma.rankingSnapshot.findMany({
-      where: { trigger: null, matchId: { not: null } },
-      select: { id: true, matchId: true, isLatest: true, createdAt: true }
-    }),
-    prisma.match.findMany({
-      where: { fecha: { not: null } },
-      select: { matchId: true, fecha: true, hora: true, matchNo: true }
-    })
-  ]);
+  const snapshots = await prisma.rankingSnapshot.findMany({
+    where: { trigger: null, matchId: { not: null } },
+    select: { id: true, matchId: true, isLatest: true, createdAt: true }
+  });
+  const matches = await prisma.match.findMany({
+    where: { fecha: { not: null } },
+    select: { matchId: true, fecha: true, hora: true, matchNo: true }
+  });
 
   const matchById = new Map(matches.map((match) => [match.matchId, match]));
 

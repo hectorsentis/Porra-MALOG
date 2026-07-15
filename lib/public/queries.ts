@@ -50,33 +50,31 @@ function madridStartOfToday() {
 /** Official-results-only data — persisted `generalRanking`, invalidated via revalidateTag(RANKING_CACHE_TAG) when recalculateAll() commits. */
 const getCachedDashboardBase = unstable_cache(
   async () => {
-    const [classification, participantsCount, computedMatches, nextMatch] = await Promise.all([
-      prisma.generalRanking.findMany({
-        orderBy: { pos: "asc" },
-        include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } },
-        take: 50
-      }),
-      prisma.participant.count(),
-      prisma.match.count({ where: { status: "OFFICIAL", finished: true } }),
-      prisma.match.findFirst({
-        where: {
-          fecha: { not: null, gte: madridStartOfToday() },
-          status: { notIn: [MatchStatus.OFFICIAL, MatchStatus.VOID] }
-        },
-        orderBy: [{ fecha: "asc" }, { matchNo: "asc" }],
-        select: {
-          matchId: true,
-          fecha: true,
-          hora: true,
-          homeTeamId: true,
-          awayTeamId: true,
-          homeTeam: true,
-          awayTeam: true,
-          homeSlot: true,
-          awaySlot: true
-        }
-      })
-    ]);
+    const classification = await prisma.generalRanking.findMany({
+      orderBy: { pos: "asc" },
+      include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } },
+      take: 50
+    });
+    const participantsCount = await prisma.participant.count();
+    const computedMatches = await prisma.match.count({ where: { status: "OFFICIAL", finished: true } });
+    const nextMatch = await prisma.match.findFirst({
+      where: {
+        fecha: { not: null, gte: madridStartOfToday() },
+        status: { notIn: [MatchStatus.OFFICIAL, MatchStatus.VOID] }
+      },
+      orderBy: [{ fecha: "asc" }, { matchNo: "asc" }],
+      select: {
+        matchId: true,
+        fecha: true,
+        hora: true,
+        homeTeamId: true,
+        awayTeamId: true,
+        homeTeam: true,
+        awayTeam: true,
+        homeSlot: true,
+        awaySlot: true
+      }
+    });
     return { classification, participantsCount, computedMatches, nextMatch };
   },
   [RANKING_CACHE_TAG, "dashboard-base"],
@@ -85,30 +83,28 @@ const getCachedDashboardBase = unstable_cache(
 
 export async function getPublicDashboard(filters: PublicFilters = {}): Promise<PublicDashboardData> {
   try {
-    const [{ classification, participantsCount, computedMatches, nextMatch }, liveMatches, provisionalOverlay] = await Promise.all([
-      getCachedDashboardBase(),
-      prisma.match.findMany({
-        where: { status: MatchStatus.DRAFT },
-        orderBy: [{ kickoffTime: "asc" }, { fecha: "asc" }, { matchNo: "asc" }],
-        take: 3,
-        select: {
-          matchId: true,
-          fecha: true,
-          kickoffTime: true,
-          hora: true,
-          homeTeamId: true,
-          awayTeamId: true,
-          homeTeam: true,
-          awayTeam: true,
-          homeSlot: true,
-          awaySlot: true,
-          homeGoals: true,
-          awayGoals: true,
-          resultText: true
-        }
-      }),
-      getLiveProvisionalOverlay()
-    ]);
+    const { classification, participantsCount, computedMatches, nextMatch } = await getCachedDashboardBase();
+    const liveMatches = await prisma.match.findMany({
+      where: { status: MatchStatus.DRAFT },
+      orderBy: [{ kickoffTime: "asc" }, { fecha: "asc" }, { matchNo: "asc" }],
+      take: 3,
+      select: {
+        matchId: true,
+        fecha: true,
+        kickoffTime: true,
+        hora: true,
+        homeTeamId: true,
+        awayTeamId: true,
+        homeTeam: true,
+        awayTeam: true,
+        homeSlot: true,
+        awaySlot: true,
+        homeGoals: true,
+        awayGoals: true,
+        resultText: true
+      }
+    });
+    const provisionalOverlay = await getLiveProvisionalOverlay();
     // Revive Date fields — unstable_cache serializes them to strings on a cache hit.
     for (const row of classification) row.updatedAt = reviveDate(row.updatedAt);
     if (nextMatch) nextMatch.fecha = reviveDateOrNull(nextMatch.fecha);

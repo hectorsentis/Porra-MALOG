@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import { getTournamentBonusOverride } from "@/lib/admin/bonusOverrides";
+import { getCachedTournamentBonusOverride, getTournamentBonusOverride } from "@/lib/admin/bonusOverrides";
 import type { BonusResultInput } from "./types";
 import { isOfficialMatchForScoring } from "./matchStatus";
 
@@ -199,26 +199,29 @@ export function goalMetricsForTeams(
   }));
 }
 
-export async function getTournamentBonusResult(prisma: PrismaClient): Promise<TournamentBonusResult> {
-  const [matches, performances, teams, config] = await Promise.all([
-    prisma.match.findMany({
-      select: {
-        fase: true,
-        homeTeamId: true,
-        awayTeamId: true,
-        homeGoals: true,
-        awayGoals: true,
-        winnerTeamId: true,
-        qualifiedTeamId: true,
-        overrideQualifiedTeamId: true,
-        status: true,
-        finished: true
-      }
-    }),
-    (prisma as unknown as { tournamentTeamPerformance: { findMany: () => Promise<BonusPerformance[]> } }).tournamentTeamPerformance.findMany(),
-    prisma.team.findMany({ select: { teamId: true, fifaRank: true } }),
-    getTournamentBonusOverride().catch(() => null)
-  ]);
+export async function getTournamentBonusResult(
+  prisma: PrismaClient,
+  options: { cachedOverride?: boolean } = {}
+): Promise<TournamentBonusResult> {
+  const matches = await prisma.match.findMany({
+    select: {
+      fase: true,
+      homeTeamId: true,
+      awayTeamId: true,
+      homeGoals: true,
+      awayGoals: true,
+      winnerTeamId: true,
+      qualifiedTeamId: true,
+      overrideQualifiedTeamId: true,
+      status: true,
+      finished: true
+    }
+  });
+  const performances = await (prisma as unknown as {
+    tournamentTeamPerformance: { findMany: () => Promise<BonusPerformance[]> };
+  }).tournamentTeamPerformance.findMany();
+  const teams = await prisma.team.findMany({ select: { teamId: true, fifaRank: true } });
+  const config = await (options.cachedOverride ? getCachedTournamentBonusOverride() : getTournamentBonusOverride()).catch(() => null);
 
   const final = matches.find((match) => phaseKey(match.fase) === "FINAL" && isOfficialMatchForScoring(match));
   const bonusLocked = Boolean(final);

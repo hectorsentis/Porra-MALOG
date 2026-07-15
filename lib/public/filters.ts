@@ -74,20 +74,18 @@ function clean(values: Array<string | null>) {
 
 export const getPublicFilterOptions = unstable_cache(
   async (): Promise<PublicFilterOptions> => {
-    const [rankings, matches, teams] = await Promise.all([
-      prisma.generalRanking.findMany({
-        select: { participant: { select: { alias: true, departamento: true, rango: true } } },
-        orderBy: { pos: "asc" }
-      }),
-      prisma.match.findMany({
-        select: { fase: true, jornadaId: true, grupo: true },
-        orderBy: [{ fase: "asc" }, { jornadaId: "asc" }]
-      }),
-      prisma.team.findMany({
-        select: { teamId: true, seleccion: true },
-        orderBy: { seleccion: "asc" }
-      })
-    ]);
+    const rankings = await prisma.generalRanking.findMany({
+      select: { participant: { select: { alias: true, departamento: true, rango: true } } },
+      orderBy: { pos: "asc" }
+    });
+    const matches = await prisma.match.findMany({
+      select: { fase: true, jornadaId: true, grupo: true },
+      orderBy: [{ fase: "asc" }, { jornadaId: "asc" }]
+    });
+    const teams = await prisma.team.findMany({
+      select: { teamId: true, seleccion: true },
+      orderBy: { seleccion: "asc" }
+    });
 
     return {
       alias: clean(rankings.map((row) => row.participant.alias)),

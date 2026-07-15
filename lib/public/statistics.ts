@@ -25,10 +25,9 @@ function includes(value: string | null | undefined, filter: string | undefined) 
 }
 
 export async function getAdvancedStatistics(filters: PublicFilters) {
-  const [classificationRows, snapshots, betBonusRows, scoringMatches, betMatchRows, boteConfig] = await Promise.all([
-    prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } } }),
-    prisma.participantScoreSnapshot.findMany({ orderBy: { createdAt: "asc" }, take: 5000 }),
-    prisma.betBonus.findMany({
+  const classificationRows = await prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { slug: true, alias: true, departamento: true, rango: true } } } });
+  const snapshots = await prisma.participantScoreSnapshot.findMany({ orderBy: { createdAt: "asc" }, take: 5000 });
+  const betBonusRows = await prisma.betBonus.findMany({
       select: {
         participantId: true,
         campeon: true,
@@ -46,8 +45,8 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
         equipoDecepcion: true,
         totalGolesTorneo: true
       }
-    }),
-    prisma.scoringMatch.findMany({
+    });
+  const scoringMatches = await prisma.scoringMatch.findMany({
       select: {
         participantId: true,
         matchId: true,
@@ -60,12 +59,11 @@ export async function getAdvancedStatistics(filters: PublicFilters) {
         pointsTotal: true,
         match: { select: { status: true, fase: true, jornadaId: true, grupo: true, homeTeamId: true, awayTeamId: true, homeTeam: true, awayTeam: true } }
       }
-    }),
-    prisma.betMatch.findMany({
+    });
+  const betMatchRows = await prisma.betMatch.findMany({
       select: { participantId: true, predHomeGoals: true, predAwayGoals: true }
-    }),
-    prisma.boteConfig.findUnique({ where: { id: "default" } }).catch(() => null)
-  ]);
+    });
+  const boteConfig = await prisma.boteConfig.findUnique({ where: { id: "default" } }).catch(() => null);
 
   const ranking = classificationRows
     .map(toPublicClassificationRow)

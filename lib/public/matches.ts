@@ -49,10 +49,8 @@ function statusLabel(status: string) {
 }
 
 export async function getMatchFilterOptions() {
-  const [matches, teams] = await Promise.all([
-    prisma.match.findMany({ select: { fase: true, grupo: true, jornadaId: true, status: true, fecha: true, homeTeamId: true, awayTeamId: true, homeTeamIdManual: true, awayTeamIdManual: true, homeTeam: true, awayTeam: true }, orderBy: [{ fase: "asc" }, { jornadaId: "asc" }] }),
-    prisma.team.findMany({ select: { seleccion: true }, orderBy: { seleccion: "asc" } })
-  ]);
+  const matches = await prisma.match.findMany({ select: { fase: true, grupo: true, jornadaId: true, status: true, fecha: true, homeTeamId: true, awayTeamId: true, homeTeamIdManual: true, awayTeamIdManual: true, homeTeam: true, awayTeam: true }, orderBy: [{ fase: "asc" }, { jornadaId: "asc" }] });
+  const teams = await prisma.team.findMany({ select: { seleccion: true }, orderBy: { seleccion: "asc" } });
   const unique = (values: Array<string | null | undefined>) => [...new Set(values.filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "es-ES"));
   return {
     fase: unique(matches.filter((match) => !isHiddenR32(match)).map((match) => match.fase)),

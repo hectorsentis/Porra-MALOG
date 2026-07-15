@@ -75,40 +75,38 @@ export type ParticipantBetsData = {
 
 export async function getPublicParticipantBets(participantId: string): Promise<ParticipantBetsData> {
 
-  const [matchBets, scoringMatches, groupBets, scoringGroups, bonusBet] = await Promise.all([
-    prisma.betMatch.findMany({
-      where: { participantId },
-      include: {
-        match: {
-          select: {
-            matchId: true,
-            matchNo: true,
-            fase: true,
-            grupo: true,
-            jornadaId: true,
-            fecha: true,
-            hora: true,
-            homeTeam: true,
-            awayTeam: true,
-            homeTeamId: true,
-            awayTeamId: true,
-            homeSlot: true,
-            awaySlot: true,
-            status: true,
-            resultText: true,
-            homeGoals: true,
-            awayGoals: true,
-            qualifiedTeamId: true,
-            overrideQualifiedTeamId: true
-          }
+  const matchBets = await prisma.betMatch.findMany({
+    where: { participantId },
+    include: {
+      match: {
+        select: {
+          matchId: true,
+          matchNo: true,
+          fase: true,
+          grupo: true,
+          jornadaId: true,
+          fecha: true,
+          hora: true,
+          homeTeam: true,
+          awayTeam: true,
+          homeTeamId: true,
+          awayTeamId: true,
+          homeSlot: true,
+          awaySlot: true,
+          status: true,
+          resultText: true,
+          homeGoals: true,
+          awayGoals: true,
+          qualifiedTeamId: true,
+          overrideQualifiedTeamId: true
         }
       }
-    }),
-    prisma.scoringMatch.findMany({ where: { participantId } }),
-    prisma.betGroupPosition.findMany({ where: { participantId, valid: true } }),
-    prisma.scoringGroup.findMany({ where: { participantId } }),
-    prisma.betBonus.findUnique({ where: { participantId } })
-  ]);
+    }
+  });
+  const scoringMatches = await prisma.scoringMatch.findMany({ where: { participantId } });
+  const groupBets = await prisma.betGroupPosition.findMany({ where: { participantId, valid: true } });
+  const scoringGroups = await prisma.scoringGroup.findMany({ where: { participantId } });
+  const bonusBet = await prisma.betBonus.findUnique({ where: { participantId } });
 
   const scoreByMatch = new Map(scoringMatches.map((score) => [score.matchId, score]));
 

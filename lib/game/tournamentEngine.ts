@@ -421,13 +421,14 @@ export function computeTournamentState(matches: TournamentMatch[], teams: Tourna
 
 export async function recalculateTournamentEngine(prisma: PrismaClient) {
   const tournamentDb = prisma as unknown as TournamentDb;
-  const [matches, teams, combos] = await Promise.all([
-    prisma.match.findMany(),
-    prisma.team.findMany(),
-    tournamentDb.thirdPlaceComboMapping.findMany()
-  ]);
+  const matches = await prisma.match.findMany();
+  const teams = await prisma.team.findMany();
+  const combos = await tournamentDb.thirdPlaceComboMapping.findMany();
   const state = computeTournamentState(matches, teams, combos);
 
+  // Several delete/createMany calls plus a per-match update loop can exceed
+  // Prisma's 5s default interactive-transaction timeout over network latency
+  // to Supabase, so it's raised explicitly here.
   await prisma.$transaction(async (tx) => {
     const tournamentTx = tx as unknown as TournamentDb;
     await tournamentTx.tournamentGroupStanding.deleteMany();
@@ -475,7 +476,7 @@ export async function recalculateTournamentEngine(prisma: PrismaClient) {
         }
       });
     }
-  });
+  }, { timeout: 30000 });
 
   return state;
 }

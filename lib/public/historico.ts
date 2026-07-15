@@ -46,20 +46,18 @@ export type HistoricalRanking = {
 
 const getCachedHistoricalBase = unstable_cache(
   async () => {
-    const [matchSnapshots, phaseMarkers, matches] = await Promise.all([
-      prisma.rankingSnapshot.findMany({
-        where: { trigger: null, matchId: { not: null } },
-        select: { id: true, label: true, matchId: true, phase: true, matchday: true, isLatest: true, createdAt: true }
-      }),
-      prisma.rankingSnapshot.findMany({
-        where: { trigger: "phase-start" },
-        select: { id: true, phaseGroup: true }
-      }),
-      prisma.match.findMany({
-        where: { fecha: { not: null } },
-        select: { matchId: true, fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, fase: true, jornadaId: true }
-      })
-    ]);
+    const matchSnapshots = await prisma.rankingSnapshot.findMany({
+      where: { trigger: null, matchId: { not: null } },
+      select: { id: true, label: true, matchId: true, phase: true, matchday: true, isLatest: true, createdAt: true }
+    });
+    const phaseMarkers = await prisma.rankingSnapshot.findMany({
+      where: { trigger: "phase-start" },
+      select: { id: true, phaseGroup: true }
+    });
+    const matches = await prisma.match.findMany({
+      where: { fecha: { not: null } },
+      select: { matchId: true, fecha: true, matchNo: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true, fase: true, jornadaId: true }
+    });
     return { matchSnapshots, phaseMarkers, matches };
   },
   [RANKING_CACHE_TAG, "historico-events"],

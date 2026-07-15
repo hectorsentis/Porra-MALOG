@@ -19,14 +19,12 @@ function readNumber(value?: string) {
 }
 
 export async function getSimulatorData(filters: PublicFilters & { homeGoals?: string; awayGoals?: string; qualifiedTeamId?: string }) {
-  const [rankings, matches] = await Promise.all([
-    prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { alias: true, departamento: true, rango: true } } } }),
-    prisma.match.findMany({
-      where: { status: { not: "OFFICIAL" } },
-      select: { matchId: true, matchNo: true, fase: true, grupo: true, jornadaId: true, fecha: true, homeTeamId: true, awayTeamId: true, homeTeam: true, awayTeam: true, homeSlot: true, awaySlot: true },
-      orderBy: [{ fecha: "asc" }, { matchNo: "asc" }]
-    })
-  ]);
+  const rankings = await prisma.generalRanking.findMany({ orderBy: { pos: "asc" }, include: { participant: { select: { alias: true, departamento: true, rango: true } } } });
+  const matches = await prisma.match.findMany({
+    where: { status: { not: "OFFICIAL" } },
+    select: { matchId: true, matchNo: true, fase: true, grupo: true, jornadaId: true, fecha: true, homeTeamId: true, awayTeamId: true, homeTeam: true, awayTeam: true, homeSlot: true, awaySlot: true },
+    orderBy: [{ fecha: "asc" }, { matchNo: "asc" }]
+  });
   const availableMatches = matches.filter(isResolvedMatch).map((match) => ({
     matchId: match.matchId,
     label: `${match.matchId} - ${formatCountry(match.homeTeamId, match.homeTeam ?? match.homeSlot ?? "Local")} vs ${formatCountry(match.awayTeamId, match.awayTeam ?? match.awaySlot ?? "Visitante")}`,

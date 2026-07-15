@@ -39,11 +39,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   let stats = { participants: 0, matches: 0, imports: 0 };
   try {
-    const [participants, matches, imports] = await Promise.all([
-      prisma.participant.count(),
-      prisma.match.count(),
-      prisma.importRun.count()
-    ]);
+    const participants = await prisma.participant.count();
+    const matches = await prisma.match.count();
+    const imports = await prisma.importRun.count();
     stats = { participants, matches, imports };
   } catch {
     // Admin remains accessible even before DATABASE_URL is configured.

@@ -89,27 +89,25 @@ async function recalculateAllInternal(prisma: PrismaClient, options: Recalculate
   try {
     await recalculateTournamentEngine(prisma);
 
-    const [participants, bets, matches, previous, rules, teams, groupBets, bonusBets, bonusResult, lastPhaseSnapshot, lastDaySnapshot] = await Promise.all([
-      prisma.participant.findMany(),
-      prisma.betMatch.findMany(),
-      prisma.match.findMany(),
-      prisma.generalRanking.findMany(),
-      getActiveGameRules(),
-      prisma.team.findMany(),
-      prisma.betGroupPosition.findMany(),
-      prisma.betBonus.findMany(),
-      getTournamentBonusResult(prisma),
-      prisma.rankingSnapshot.findFirst({
-        where: { trigger: "phase-start" },
-        orderBy: { createdAt: "desc" },
-        include: { rows: true }
-      }),
-      prisma.rankingSnapshot.findFirst({
-        where: { trigger: "day-start", dayKey: todayKeyEst },
-        orderBy: { createdAt: "asc" },
-        include: { rows: true }
-      })
-    ]);
+    const participants = await prisma.participant.findMany();
+    const bets = await prisma.betMatch.findMany();
+    const matches = await prisma.match.findMany();
+    const previous = await prisma.generalRanking.findMany();
+    const rules = await getActiveGameRules();
+    const teams = await prisma.team.findMany();
+    const groupBets = await prisma.betGroupPosition.findMany();
+    const bonusBets = await prisma.betBonus.findMany();
+    const bonusResult = await getTournamentBonusResult(prisma);
+    const lastPhaseSnapshot = await prisma.rankingSnapshot.findFirst({
+      where: { trigger: "phase-start" },
+      orderBy: { createdAt: "desc" },
+      include: { rows: true }
+    });
+    const lastDaySnapshot = await prisma.rankingSnapshot.findFirst({
+      where: { trigger: "day-start", dayKey: todayKeyEst },
+      orderBy: { createdAt: "asc" },
+      include: { rows: true }
+    });
 
     const matchById = new Map(matches.map((match) => [match.matchId, match]));
     const previousByParticipant = new Map(previous.map((row) => [row.participantId, row]));
@@ -489,7 +487,10 @@ async function recalculateAllInternal(prisma: PrismaClient, options: Recalculate
         where: { id: run.id },
         data: { status: "SUCCESS", finishedAt: new Date(), affectedParticipants: ranking.length }
       });
-    });
+      // Explicit timeout: this transaction deletes/recreates scoring and ranking
+      // tables for every participant, which can exceed Prisma's 5s default
+      // interactive-transaction timeout over network latency to Supabase.
+    }, { timeout: 30000 });
 
     // No-op outside a Next.js request context (e.g. the standalone scripts/*.ts
     // CLI tools run via tsx), so this is wrapped defensively.

@@ -21,10 +21,8 @@ function listText(value: string | string[] | number | null | undefined) {
 export default async function AdminBonusPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
   await requireAdminForPath("/admin/bonus");
   const params = await searchParams;
-  const [config, bonus] = await Promise.all([
-    getTournamentBonusOverride().catch(() => null),
-    getTournamentBonusResult(prisma)
-  ]);
+  const config = await getTournamentBonusOverride().catch(() => null);
+  const bonus = await getTournamentBonusResult(prisma);
 
   return (
     <AdminShell>

@@ -13,12 +13,10 @@ function money(value: unknown) {
 
 export default async function AdminBotePage() {
   await requireAdminForPath("/admin/bote");
-  const [config, totalParticipants, includedParticipants, pendingParticipants] = await Promise.all([
-    prisma.boteConfig.findUnique({ where: { id: "default" } }),
-    prisma.participant.count(),
-    prisma.participant.count({ where: { OR: [{ pay: { equals: "SI", mode: "insensitive" } }, { pagado: { not: null } }] } }),
-    prisma.participant.count({ where: { NOT: { OR: [{ pay: { equals: "SI", mode: "insensitive" } }, { pagado: { not: null } }] } } })
-  ]);
+  const config = await prisma.boteConfig.findUnique({ where: { id: "default" } });
+  const totalParticipants = await prisma.participant.count();
+  const includedParticipants = await prisma.participant.count({ where: { OR: [{ pay: { equals: "SI", mode: "insensitive" } }, { pagado: { not: null } }] } });
+  const pendingParticipants = await prisma.participant.count({ where: { NOT: { OR: [{ pay: { equals: "SI", mode: "insensitive" } }, { pagado: { not: null } }] } } });
 
   const total = Number(config?.totalAmount ?? 0);
   const prizeSum = Number(config?.firstPrize ?? 0) + Number(config?.secondPrize ?? 0) + Number(config?.thirdPrize ?? 0) + Number(config?.consolationPrize ?? 0);
