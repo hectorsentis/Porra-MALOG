@@ -8,6 +8,12 @@ import { simulateRanking } from "@/lib/game/simulator";
 import { isOfficialMatchForScoring } from "@/lib/game/recalculateAll";
 import { predictionSign, summarizePredictionDistribution } from "@/lib/public/matchStats";
 import { computeGroupStandings } from "@/lib/game/groupStandings";
+import {
+  calculateBonusTeamScores,
+  calculateDisappointmentTeams,
+  calculateRevelationTeams,
+  goalMetricsForTeams
+} from "@/lib/game/bonusResults";
 
 describe("scoreMatch", () => {
   it("scores exact result", () => {
@@ -469,6 +475,146 @@ describe("scoreBonus", () => {
   it("scores total goals within tolerance", () => {
     const score = scoreBonus({ participantId: "P1", totalGolesTorneo: 165 }, result);
     expect(score.totalGolesTorneoOk).toBe(true);
+  });
+});
+
+describe("calculateRevelationTeams", () => {
+  it("uses roundValue multiplied by FIFA ranking instead of only the furthest round", () => {
+    const teams = calculateRevelationTeams(
+      [
+        { teamId: "A", roundValue: 6, tournamentGf: 12, tournamentGc: 4 },
+        { teamId: "B", roundValue: 3, tournamentGf: 4, tournamentGc: 5 },
+        { teamId: "C", roundValue: 1, tournamentGf: 2, tournamentGc: 6 }
+      ],
+      new Map([
+        ["A", 5],
+        ["B", 80],
+        ["C", 150]
+      ])
+    );
+
+    expect(teams).toEqual(["B"]);
+  });
+
+  it("excludes teams below R16 and teams without a valid FIFA ranking", () => {
+    const teams = calculateRevelationTeams(
+      [
+        { teamId: "GROUPS", roundValue: 1, tournamentGf: 1, tournamentGc: 8 },
+        { teamId: "NORANK", roundValue: 4, tournamentGf: 5, tournamentGc: 5 },
+        { teamId: "R16", roundValue: 3, tournamentGf: 3, tournamentGc: 4 }
+      ],
+      new Map([
+        ["GROUPS", 150],
+        ["NORANK", null],
+        ["R16", 40]
+      ])
+    );
+
+    expect(teams).toEqual(["R16"]);
+  });
+
+  it("returns every team tied on revelation score", () => {
+    const teams = calculateRevelationTeams(
+      [
+        { teamId: "A", roundValue: 4, tournamentGf: 6, tournamentGc: 4 },
+        { teamId: "B", roundValue: 3, tournamentGf: 4, tournamentGc: 4 },
+        { teamId: "C", roundValue: 5, tournamentGf: 7, tournamentGc: 4 }
+      ],
+      new Map([
+        ["A", 60],
+        ["B", 80],
+        ["C", 20]
+      ])
+    );
+
+    expect(teams).toEqual(["A", "B"]);
+  });
+});
+
+describe("calculateDisappointmentTeams", () => {
+  it("combines an early exit with FIFA strength", () => {
+    const teams = calculateDisappointmentTeams(
+      [
+        { teamId: "FAVORITE", roundValue: 2, tournamentGf: 4, tournamentGc: 3 },
+        { teamId: "OUTSIDER", roundValue: 1, tournamentGf: 1, tournamentGc: 8 },
+        { teamId: "CHAMPION", roundValue: 6, tournamentGf: 14, tournamentGc: 4 }
+      ],
+      new Map([
+        ["FAVORITE", 1],
+        ["OUTSIDER", 40],
+        ["CHAMPION", 2]
+      ])
+    );
+
+    expect(teams).toEqual(["FAVORITE"]);
+  });
+
+  it("excludes R16 or later and teams without a valid FIFA ranking", () => {
+    const teams = calculateDisappointmentTeams(
+      [
+        { teamId: "R16", roundValue: 3, tournamentGf: 4, tournamentGc: 4 },
+        { teamId: "NORANK", roundValue: 1, tournamentGf: 1, tournamentGc: 7 },
+        { teamId: "R32", roundValue: 2, tournamentGf: 3, tournamentGc: 4 }
+      ],
+      new Map([
+        ["R16", 1],
+        ["NORANK", null],
+        ["R32", 12]
+      ])
+    );
+
+    expect(teams).toEqual(["R32"]);
+  });
+
+  it("returns every team tied on disappointment score", () => {
+    const teams = calculateDisappointmentTeams(
+      [
+        { teamId: "A", roundValue: 2, tournamentGf: 2, tournamentGc: 3 },
+        { teamId: "B", roundValue: 1, tournamentGf: 1, tournamentGc: 5 },
+        { teamId: "MAX", roundValue: 3, tournamentGf: 3, tournamentGc: 3 }
+      ],
+      new Map([
+        ["A", 41],
+        ["B", 51],
+        ["MAX", 100]
+      ])
+    );
+
+    expect(teams).toEqual(["A", "B"]);
+  });
+});
+
+describe("bonus team score details", () => {
+  it("assigns shared positions to exact score ties", () => {
+    const rows = calculateBonusTeamScores(
+      [
+        { teamId: "A", roundValue: 4, tournamentGf: 6, tournamentGc: 3 },
+        { teamId: "B", roundValue: 3, tournamentGf: 4, tournamentGc: 4 },
+        { teamId: "C", roundValue: 5, tournamentGf: 8, tournamentGc: 4 }
+      ],
+      new Map([
+        ["A", 60],
+        ["B", 80],
+        ["C", 20]
+      ])
+    );
+
+    expect(rows.find((row) => row.teamId === "A")).toMatchObject({ revelationScore: 240, revelationRank: 1, revelationLeader: true });
+    expect(rows.find((row) => row.teamId === "B")).toMatchObject({ revelationScore: 240, revelationRank: 1, revelationLeader: true });
+    expect(rows.find((row) => row.teamId === "C")).toMatchObject({ revelationScore: 100, revelationRank: 3, revelationLeader: false });
+  });
+
+  it("returns the calculated GF or GC for every tied selection", () => {
+    const performances = [
+      { teamId: "ESP", roundValue: 4, tournamentGf: 12, tournamentGc: 3 },
+      { teamId: "BRA", roundValue: 4, tournamentGf: 12, tournamentGc: 5 }
+    ];
+
+    expect(goalMetricsForTeams(["ESP", "BRA"], performances, "tournamentGf")).toEqual([
+      { teamId: "ESP", goals: 12 },
+      { teamId: "BRA", goals: 12 }
+    ]);
+    expect(goalMetricsForTeams("BRA", performances, "tournamentGc")).toEqual([{ teamId: "BRA", goals: 5 }]);
   });
 });
 

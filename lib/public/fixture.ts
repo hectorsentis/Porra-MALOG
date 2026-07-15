@@ -1,7 +1,12 @@
 ﻿
 import { prisma } from "@/lib/prisma";
 import { formatCountry } from "@/lib/countries";
-import { getTournamentBonusResult, type TournamentBonusResult } from "@/lib/game/bonusResults";
+import {
+  getTournamentBonusResult,
+  type BonusGoalMetric,
+  type BonusTeamScore,
+  type TournamentBonusResult
+} from "@/lib/game/bonusResults";
 
 type TournamentStandingRecord = {
   grupo: string;
@@ -66,6 +71,13 @@ export type FixtureOverview = {
     seleccionMenosGoleadaLabels: string[];
     equipoRevelacionLabels: string[];
     equipoDecepcionLabels: string[];
+    teamScoreRows: Array<BonusTeamScore & { team: string }>;
+    goalMetricLabels: {
+      seleccionMasGoleadora: Array<BonusGoalMetric & { team: string }>;
+      seleccionMasGoleada: Array<BonusGoalMetric & { team: string }>;
+      seleccionMenosGoleadora: Array<BonusGoalMetric & { team: string }>;
+      seleccionMenosGoleada: Array<BonusGoalMetric & { team: string }>;
+    };
   };
 };
 
@@ -123,6 +135,7 @@ export async function getFixtureOverview() {
   const name = (teamId: string | null, fallback: string | null) => formatCountry(teamId, fallback ?? (teamId ? teamNameById.get(teamId) : null) ?? "Por resolver");
   const bonusName = (teamId: string | null | undefined) => (teamId ? name(teamId, teamId) : "-");
   const bonusNames = (value: string | string[] | null | undefined) => (Array.isArray(value) ? value : value ? [value] : []).map(bonusName);
+  const goalMetricLabels = (values: BonusGoalMetric[]) => values.map((value) => ({ ...value, team: bonusName(value.teamId) }));
 
   const groups = new Map<string, FixtureGroup["rows"]>();
   for (const row of standings) {
@@ -185,7 +198,23 @@ export async function getFixtureOverview() {
       seleccionMenosGoleadoraLabels: bonusNames(bonus.seleccionMenosGoleadora),
       seleccionMenosGoleadaLabels: bonusNames(bonus.seleccionMenosGoleada),
       equipoRevelacionLabels: bonusNames(bonus.equipoRevelacion),
-      equipoDecepcionLabels: bonusNames(bonus.equipoDecepcion)
+      equipoDecepcionLabels: bonusNames(bonus.equipoDecepcion),
+      teamScoreRows: bonus.teamScores
+        .map((row) => ({ ...row, team: bonusName(row.teamId) }))
+        .sort((a, b) => {
+          const aEligible = a.revelationScore != null ? 0 : 1;
+          const bEligible = b.revelationScore != null ? 0 : 1;
+          return aEligible - bEligible
+            || (a.revelationRank ?? a.disappointmentRank ?? Number.MAX_SAFE_INTEGER)
+              - (b.revelationRank ?? b.disappointmentRank ?? Number.MAX_SAFE_INTEGER)
+            || a.team.localeCompare(b.team, "es-ES");
+        }),
+      goalMetricLabels: {
+        seleccionMasGoleadora: goalMetricLabels(bonus.goalMetrics.seleccionMasGoleadora),
+        seleccionMasGoleada: goalMetricLabels(bonus.goalMetrics.seleccionMasGoleada),
+        seleccionMenosGoleadora: goalMetricLabels(bonus.goalMetrics.seleccionMenosGoleadora),
+        seleccionMenosGoleada: goalMetricLabels(bonus.goalMetrics.seleccionMenosGoleada)
+      }
     }
   };
 }

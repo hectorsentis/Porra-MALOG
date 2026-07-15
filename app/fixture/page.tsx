@@ -120,6 +120,29 @@ function BonusTeams({ values, country = true }: { values: string[]; country?: bo
   );
 }
 
+function BonusGoalTeams({ values }: { values: Array<{ teamId: string; team: string; goals: number | null }> }) {
+  if (values.length === 0) return <strong>-</strong>;
+  return (
+    <strong>
+      {values.map((value, index) => (
+        <span key={value.teamId}>
+          {index > 0 ? ", " : ""}
+          <CountryLabel value={value.team} /> ({value.goals ?? "-"})
+        </span>
+      ))}
+    </strong>
+  );
+}
+
+function bonusRoundLabel(round: string) {
+  if (round === "R32") return "1/16";
+  if (round === "R16") return "1/8";
+  if (round === "QF") return "1/4";
+  if (round === "SF" || round === "TERCER_PUESTO") return "Semifinal";
+  if (round === "FINAL") return "Final";
+  return "Grupos";
+}
+
 export default async function FixturePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const rawTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
@@ -227,25 +250,69 @@ export default async function FixturePage({ searchParams }: { searchParams: Prom
       ) : null}
 
       {activeTab === "bonus" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Bonus finales</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm md:grid-cols-2">
-            <p>Estado: <strong>{fixture.bonus.bonusLocked ? "Puntuable" : "Pendiente de final"}</strong></p>
-            <p>Campeon: <strong><CountryLabel value={fixture.bonus.campeonLabel} /></strong></p>
-            <p>Subcampeon: <strong><CountryLabel value={fixture.bonus.subcampeonLabel} /></strong></p>
-            <p>Semifinalistas: <BonusTeams values={fixture.bonus.semifinalistasLabels} /></p>
-            <p>Maximo goleador: <BonusTeams values={fixture.bonus.maximoGoleadorLabels} country={false} /></p>
-            <p>Seleccion mas goleadora: <BonusTeams values={fixture.bonus.seleccionMasGoleadoraLabels} /></p>
-            <p>Seleccion mas goleada: <BonusTeams values={fixture.bonus.seleccionMasGoleadaLabels} /></p>
-            <p>Seleccion menos goleadora: <BonusTeams values={fixture.bonus.seleccionMenosGoleadoraLabels} /></p>
-            <p>Seleccion menos goleada: <BonusTeams values={fixture.bonus.seleccionMenosGoleadaLabels} /></p>
-            <p>Equipo revelacion: <BonusTeams values={fixture.bonus.equipoRevelacionLabels} /></p>
-            <p>Equipo decepcion: <BonusTeams values={fixture.bonus.equipoDecepcionLabels} /></p>
-            <p>Total goles: <strong>{fixture.bonus.totalGolesTorneo ?? "-"}</strong></p>
-          </CardContent>
-        </Card>
+        <section className="grid gap-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bonus finales</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm md:grid-cols-2">
+              <p>Estado: <strong>{fixture.bonus.bonusLocked ? "Puntuable" : "Pendiente de final"}</strong></p>
+              <p>Campeon: <strong><CountryLabel value={fixture.bonus.campeonLabel} /></strong></p>
+              <p>Subcampeon: <strong><CountryLabel value={fixture.bonus.subcampeonLabel} /></strong></p>
+              <p>Semifinalistas: <BonusTeams values={fixture.bonus.semifinalistasLabels} /></p>
+              <p>Maximo goleador: <BonusTeams values={fixture.bonus.maximoGoleadorLabels} country={false} /></p>
+              <p>Seleccion mas goleadora: <BonusGoalTeams values={fixture.bonus.goalMetricLabels.seleccionMasGoleadora} /></p>
+              <p>Seleccion mas goleada: <BonusGoalTeams values={fixture.bonus.goalMetricLabels.seleccionMasGoleada} /></p>
+              <p>Seleccion menos goleadora: <BonusGoalTeams values={fixture.bonus.goalMetricLabels.seleccionMenosGoleadora} /></p>
+              <p>Seleccion menos goleada: <BonusGoalTeams values={fixture.bonus.goalMetricLabels.seleccionMenosGoleada} /></p>
+              <p>Equipo revelacion: <BonusTeams values={fixture.bonus.equipoRevelacionLabels} /></p>
+              <p>Equipo decepcion: <BonusTeams values={fixture.bonus.equipoDecepcionLabels} /></p>
+              <p>Total goles: <strong>{fixture.bonus.totalGolesTorneo ?? "-"}</strong></p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Puntuaciones calculadas</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-sm">
+                <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Seleccion</th>
+                    <th className="px-3 py-2">Ronda</th>
+                    <th className="px-3 py-2">Ranking FIFA</th>
+                    <th className="px-3 py-2">Punt. revelacion</th>
+                    <th className="px-3 py-2">Pos. revelacion</th>
+                    <th className="px-3 py-2">Punt. decepcion</th>
+                    <th className="px-3 py-2">Pos. decepcion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fixture.bonus.teamScoreRows.map((row) => (
+                    <tr key={row.teamId} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-semibold"><CountryLabel value={row.team} /></td>
+                      <td className="px-3 py-2">{bonusRoundLabel(row.reachedRound)}</td>
+                      <td className="px-3 py-2">{row.fifaRank ?? "-"}</td>
+                      <td className={`px-3 py-2 ${row.revelationLeader ? "bg-emerald-50 font-bold text-emerald-800" : ""}`}>
+                        {row.revelationScore ?? "-"}
+                      </td>
+                      <td className={`px-3 py-2 ${row.revelationLeader ? "bg-emerald-50 font-bold text-emerald-800" : ""}`}>
+                        {row.revelationRank ?? "-"}
+                      </td>
+                      <td className={`px-3 py-2 ${row.disappointmentLeader ? "bg-red-50 font-bold text-red-800" : ""}`}>
+                        {row.disappointmentScore ?? "-"}
+                      </td>
+                      <td className={`px-3 py-2 ${row.disappointmentLeader ? "bg-red-50 font-bold text-red-800" : ""}`}>
+                        {row.disappointmentRank ?? "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </section>
       ) : null}
     </PublicShell>
   );
